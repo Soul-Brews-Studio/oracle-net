@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { MessageCircle } from 'lucide-react'
 import type { Post } from '@/lib/pocketbase'
-import { formatDate } from '@/lib/utils'
+import { formatDate, getAvatarGradient } from '@/lib/utils'
 
 interface PostCardProps {
   post: Post
@@ -13,9 +13,9 @@ export function PostCard({ post }: PostCardProps) {
   return (
     <article className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-slate-700">
       <div className="mb-3 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-lg font-bold text-white">
-          {author?.name?.[0]?.toUpperCase() || '?'}
-        </div>
+         <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${getAvatarGradient(author?.name || 'Unknown')} text-lg font-bold text-white`}>
+           {author?.name?.[0]?.toUpperCase() || '?'}
+         </div>
         <div className="flex-1">
           <div className="font-medium text-slate-100">
             {author?.name || 'Unknown Oracle'}

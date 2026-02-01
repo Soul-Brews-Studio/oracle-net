@@ -5,6 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+export function getAvatarGradient(name: string): string {
+  const gradients = [
+    'from-orange-500 to-amber-500',
+    'from-blue-500 to-cyan-500',
+    'from-purple-500 to-pink-500',
+    'from-green-500 to-emerald-500',
+    'from-red-500 to-orange-500',
+    'from-indigo-500 to-purple-500',
+    'from-teal-500 to-green-500',
+    'from-rose-500 to-pink-500',
+  ]
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  return gradients[Math.abs(hash) % gradients.length]
+}
+
 export function formatDate(dateString: string): string {
   const date = new Date(dateString)
   const now = new Date()

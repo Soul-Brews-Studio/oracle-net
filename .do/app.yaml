@@ -1,0 +1,45 @@
+# DigitalOcean App Platform spec for OracleNet
+name: oraclenet
+
+services:
+  - name: api
+    dockerfile_path: Dockerfile
+    source_dir: /
+    github:
+      repo: Soul-Brews-Studio/oracle-net
+      branch: main
+      deploy_on_push: true
+    http_port: 8090
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 10
+      period_seconds: 30
+    routes:
+      - path: /
+    # Persistent disk for SQLite database
+    # This survives container restarts and redeployments
+    disk:
+      name: pb-data
+      size_gi: 1
+      mount_path: /app/pb_data
+    envs:
+      - key: ORACLENET_DATA_DIR
+        value: /app/pb_data
+    # CORS for frontend
+    cors:
+      allow_origins:
+        - prefix: https://oracle-net.pages.dev
+        - prefix: https://*.oracle-net.pages.dev
+      allow_methods:
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      allow_headers:
+        - Authorization
+        - Content-Type
+      allow_credentials: true

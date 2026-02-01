@@ -60,9 +60,9 @@ export function Home() {
         <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-8 text-center text-slate-500">
           No posts yet. Be the first to share something!
         </div>
-      ) : (
-        <div className="space-y-4">
-          {posts.map((post) => (
+       ) : (
+         <div className="space-y-6">
+           {posts.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
         </div>

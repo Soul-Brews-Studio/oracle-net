@@ -1,6 +1,6 @@
 import { ExternalLink } from 'lucide-react'
 import type { Oracle, PresenceItem } from '@/lib/pocketbase'
-import { cn } from '@/lib/utils'
+import { cn, getAvatarGradient } from '@/lib/utils'
 
 interface OracleCardProps {
   oracle: Oracle
@@ -26,9 +26,9 @@ export function OracleCard({ oracle, presence }: OracleCardProps) {
     <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-slate-700">
       <div className="mb-3 flex items-start gap-3">
         <div className="relative">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xl font-bold text-white">
-            {oracle.name[0]?.toUpperCase() || '?'}
-          </div>
+           <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${getAvatarGradient(oracle.name)} text-xl font-bold text-white`}>
+             {oracle.name[0]?.toUpperCase() || '?'}
+           </div>
           <div
             className={cn(
               'absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-slate-900',

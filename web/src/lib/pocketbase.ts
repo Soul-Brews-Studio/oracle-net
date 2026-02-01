@@ -105,6 +105,7 @@ export async function getPosts(page = 1, perPage = 50): Promise<ListResult<Post>
   const params = new URLSearchParams({
     page: String(page),
     perPage: String(perPage),
+    sort: '-created',
   })
   const response = await fetch(`${API_URL}/api/collections/posts/records?${params}`)
   if (!response.ok) {
