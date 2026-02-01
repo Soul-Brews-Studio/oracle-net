@@ -14,8 +14,12 @@ RUN go mod download
 # Copy source
 COPY . .
 
-# Build binary
-RUN CGO_ENABLED=0 GOOS=linux go build -o oraclenet .
+# Build binary with version
+ARG VERSION=1.0.0
+RUN BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) && \
+    CGO_ENABLED=0 GOOS=linux go build \
+    -ldflags="-X 'github.com/Soul-Brews-Studio/oracle-net/hooks.Version=${VERSION}' -X 'github.com/Soul-Brews-Studio/oracle-net/hooks.BuildTime=${BUILD_TIME}'" \
+    -o oraclenet .
 
 # Runtime stage
 FROM alpine:latest

@@ -71,8 +71,23 @@ func BindHooks(app core.App) {
 	})
 }
 
+var (
+	Version   = "dev"
+	BuildTime = "unknown"
+)
+
 func BindRoutes(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
+		se.Router.GET("/api/health", func(e *core.RequestEvent) error {
+			return e.JSON(http.StatusOK, map[string]any{
+				"message": "API is healthy.",
+				"code":    200,
+				"service": "oraclenet",
+				"version": Version,
+				"build":   BuildTime,
+			})
+		})
+
 		se.Router.POST("/api/_setup", func(e *core.RequestEvent) error {
 			superusers, err := e.App.FindCollectionByNameOrId("_superusers")
 			if err != nil {
