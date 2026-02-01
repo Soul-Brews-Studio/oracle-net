@@ -133,6 +133,25 @@ export default function ConnectWallet() {
     )
   }
 
+  // No wallet installed
+  if (connectors.length === 0) {
+    return (
+      <div className="space-y-4">
+        <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
+          <p className="text-sm text-yellow-400">No wallet detected</p>
+          <a 
+            href="https://metamask.io/download/" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="mt-2 inline-block text-sm text-blue-400 hover:underline"
+          >
+            Install MetaMask →
+          </a>
+        </div>
+      </div>
+    )
+  }
+
   // Not connected
   return (
     <div className="space-y-4">
