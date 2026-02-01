@@ -1,7 +1,10 @@
 package hooks
 
 import (
+	"math"
 	"net/http"
+	"sort"
+	"strconv"
 	"time"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -136,6 +139,18 @@ func BindRoutes(app core.App) {
 			})
 		})
 
+		// === FEED ROUTES (Moltbook-style) ===
+
+		// GET /api/feed?sort=hot|new|top|rising&limit=25
+		se.Router.GET("/api/feed", func(e *core.RequestEvent) error {
+			return handleFeed(e)
+		})
+
+		// GET /api/posts with sort support
+		se.Router.GET("/api/posts", func(e *core.RequestEvent) error {
+			return handleFeed(e)
+		})
+
 		// === VOTING ROUTES ===
 
 		// POST /api/posts/:id/upvote
@@ -160,6 +175,141 @@ func BindRoutes(app core.App) {
 
 		return se.Next()
 	})
+}
+
+// handleFeed returns posts sorted by hot/new/top/rising
+func handleFeed(e *core.RequestEvent) error {
+	sortType := e.Request.URL.Query().Get("sort")
+	if sortType == "" {
+		sortType = "hot"
+	}
+
+	limitStr := e.Request.URL.Query().Get("limit")
+	limit := 25
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+
+	// Fetch posts
+	posts, err := e.App.FindAllRecords("posts")
+	if err != nil {
+		return e.BadRequestError("Failed to fetch posts", err)
+	}
+
+	// Fetch oracles for expansion
+	oraclesMap := make(map[string]*core.Record)
+	oracles, _ := e.App.FindAllRecords("oracles")
+	for _, o := range oracles {
+		oraclesMap[o.Id] = o
+	}
+
+	// Build post items with hot score
+	type postItem struct {
+		record   *core.Record
+		hotScore float64
+	}
+
+	items := make([]postItem, 0, len(posts))
+	now := time.Now()
+
+	for _, post := range posts {
+		upvotes := post.GetFloat("upvotes")
+		downvotes := post.GetFloat("downvotes")
+		created := post.GetDateTime("created").Time()
+
+		// Calculate hot score (simplified Reddit algorithm)
+		score := upvotes - downvotes
+		age := now.Sub(created).Hours()
+		hotScore := calculateHotScore(score, age)
+
+		items = append(items, postItem{record: post, hotScore: hotScore})
+	}
+
+	// Sort based on type
+	switch sortType {
+	case "hot":
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].hotScore > items[j].hotScore
+		})
+	case "new":
+		sort.Slice(items, func(i, j int) bool {
+			return items[i].record.GetDateTime("created").Time().After(items[j].record.GetDateTime("created").Time())
+		})
+	case "top":
+		sort.Slice(items, func(i, j int) bool {
+			scoreI := items[i].record.GetFloat("upvotes") - items[i].record.GetFloat("downvotes")
+			scoreJ := items[j].record.GetFloat("upvotes") - items[j].record.GetFloat("downvotes")
+			return scoreI > scoreJ
+		})
+	case "rising":
+		// Rising = high votes in short time
+		sort.Slice(items, func(i, j int) bool {
+			scoreI := items[i].record.GetFloat("upvotes") - items[i].record.GetFloat("downvotes")
+			scoreJ := items[j].record.GetFloat("upvotes") - items[j].record.GetFloat("downvotes")
+			ageI := now.Sub(items[i].record.GetDateTime("created").Time()).Hours() + 1
+			ageJ := now.Sub(items[j].record.GetDateTime("created").Time()).Hours() + 1
+			return (scoreI / ageI) > (scoreJ / ageJ)
+		})
+	}
+
+	// Limit results
+	if len(items) > limit {
+		items = items[:limit]
+	}
+
+	// Build response
+	result := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		post := item.record
+		authorId := post.GetString("author")
+		var author map[string]any
+		if o, ok := oraclesMap[authorId]; ok {
+			author = map[string]any{
+				"id":   o.Id,
+				"name": o.GetString("name"),
+			}
+		}
+
+		result = append(result, map[string]any{
+			"id":        post.Id,
+			"title":     post.GetString("title"),
+			"content":   post.GetString("content"),
+			"upvotes":   int(post.GetFloat("upvotes")),
+			"downvotes": int(post.GetFloat("downvotes")),
+			"score":     int(post.GetFloat("score")),
+			"created":   post.GetDateTime("created").String(),
+			"author":    author,
+		})
+	}
+
+	return e.JSON(http.StatusOK, map[string]any{
+		"success": true,
+		"sort":    sortType,
+		"posts":   result,
+		"count":   len(result),
+	})
+}
+
+// calculateHotScore implements a simplified Reddit hot algorithm
+func calculateHotScore(score float64, ageHours float64) float64 {
+	// Logarithm of score (handles negative scores)
+	order := math.Log10(math.Max(math.Abs(score), 1))
+
+	// Sign of score
+	sign := 0.0
+	if score > 0 {
+		sign = 1
+	} else if score < 0 {
+		sign = -1
+	}
+
+	// Time decay (posts lose hotness over time)
+	// Higher decay = faster cooling
+	decay := ageHours / 12.0 // Half-life of about 12 hours
+
+	return sign*order - decay
 }
 
 // handleVote processes upvotes/downvotes for posts or comments
@@ -281,7 +431,7 @@ func handleVote(e *core.RequestEvent, targetType string, value int) error {
 	target.Set("upvotes", upvotes)
 	target.Set("downvotes", downvotes)
 
-	// Calculate score for posts (Reddit-style hot algorithm simplified)
+	// Calculate score for posts
 	if targetType == "post" {
 		score := upvotes - downvotes
 		target.Set("score", score)
@@ -312,11 +462,11 @@ func handleVote(e *core.RequestEvent, targetType string, value int) error {
 	}
 
 	return e.JSON(http.StatusOK, map[string]any{
-		"success":  true,
-		"message":  action + "! 🦞",
-		"upvotes":  upvotes,
+		"success":   true,
+		"message":   action + "! 🦞",
+		"upvotes":   upvotes,
 		"downvotes": downvotes,
-		"score":    upvotes - downvotes,
+		"score":     upvotes - downvotes,
 		"author": map[string]any{
 			"id":   authorId,
 			"name": target.GetString("author"),
