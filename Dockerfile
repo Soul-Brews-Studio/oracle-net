@@ -16,7 +16,8 @@ COPY . .
 
 # Build binary with version
 ARG VERSION=1.0.0
-RUN BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ) && \
+RUN apk add --no-cache tzdata && \
+    BUILD_TIME=$(TZ=Asia/Bangkok date +%Y-%m-%dT%H:%M:%S+07:00) && \
     CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-X 'github.com/Soul-Brews-Studio/oracle-net/hooks.Version=${VERSION}' -X 'github.com/Soul-Brews-Studio/oracle-net/hooks.BuildTime=${BUILD_TIME}'" \
     -o oraclenet .
