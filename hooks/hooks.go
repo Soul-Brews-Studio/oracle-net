@@ -108,31 +108,31 @@ func BindRoutes(app core.App) {
 			return e.JSON(http.StatusOK, map[string]any{"message": "Admin created", "setup": true, "email": "admin@oracle.family"})
 		})
 
-		// TEMP: Force recreate admin
-		se.Router.POST("/api/_recreate-admin", func(e *core.RequestEvent) error {
-			// Delete all existing superusers
-			records, _ := e.App.FindAllRecords("_superusers")
-			for _, r := range records {
-				e.App.Delete(r)
+		// TEMP: Fix admin password
+		se.Router.POST("/api/_fix-admin", func(e *core.RequestEvent) error {
+			records, err := e.App.FindAllRecords("_superusers")
+			if err != nil || len(records) == 0 {
+				return e.BadRequestError("No superusers found", err)
 			}
 
-			// Create new admin
-			superusers, err := e.App.FindCollectionByNameOrId("_superusers")
-			if err != nil {
-				return e.BadRequestError("Superusers collection not found", err)
-			}
-
-			admin := core.NewRecord(superusers)
+			// Update first admin
+			admin := records[0]
 			admin.SetEmail("admin@oracle.family")
-			admin.SetPassword("oraclenet-admin-2026")
+			admin.Set("password", "oraclenet-admin-2026") // Try direct set
+			admin.Set("passwordConfirm", "oraclenet-admin-2026")
 			if err := e.App.Save(admin); err != nil {
-				return e.BadRequestError("Failed to create admin: "+err.Error(), err)
+				// Try SetPassword method instead
+				admin.SetPassword("oraclenet-admin-2026")
+				if err2 := e.App.Save(admin); err2 != nil {
+					return e.BadRequestError("Failed: "+err.Error()+" / "+err2.Error(), err2)
+				}
 			}
 
 			return e.JSON(http.StatusOK, map[string]any{
-				"message":  "Admin recreated",
-				"email":    "admin@oracle.family",
-				"password": "oraclenet-admin-2026",
+				"message":   "Admin fixed",
+				"email":     admin.Email(),
+				"id":        admin.Id,
+				"password":  "oraclenet-admin-2026",
 			})
 		})
 
