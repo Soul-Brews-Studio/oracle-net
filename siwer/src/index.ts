@@ -1124,19 +1124,21 @@ app.post('/verify-identity', async (c) => {
     verified_at: new Date().toISOString()
   }))
 
-  // 5. Update Oracle in PocketBase with github_username, birth_issue, and oracle name → approved
+  // 5. Update or create Oracle in PocketBase with github_username, birth_issue, and oracle name → approved
   const pb = new PocketBase(c.env.POCKETBASE_URL)
+  await pb.collection('_superusers').authWithPassword(c.env.PB_ADMIN_EMAIL, c.env.PB_ADMIN_PASSWORD)
+
+  let oracle: any
+  let created = false
 
   try {
     // Find oracle by wallet
-    const oracle = await pb.collection('oracles').getFirstListItem(
+    oracle = await pb.collection('oracles').getFirstListItem(
       `wallet_address = "${wallet.toLowerCase()}"`
     )
 
     // Update with all values and set approved
     const isGenericName = oracle.name?.startsWith('Oracle-')
-    await pb.collection('_superusers').authWithPassword(c.env.PB_ADMIN_EMAIL, c.env.PB_ADMIN_PASSWORD)
-
     const finalName = isGenericName ? oracleName : oracle.name
 
     await pb.collection('oracles').update(oracle.id, {
@@ -1152,10 +1154,38 @@ app.post('/verify-identity', async (c) => {
       birth_issue: birthIssueNum,
       wallet: wallet.toLowerCase(),
       oracle_name: finalName,
-      fully_verified: true
+      fully_verified: true,
+      created: false
     })
-  } catch (e: any) {
-    return c.json({ success: false, error: 'Oracle not found. Connect wallet first.' }, 404)
+  } catch {
+    // Oracle doesn't exist - create it
+    const walletEmail = `${wallet.toLowerCase().slice(2, 10)}@wallet.oraclenet`
+    try {
+      oracle = await pb.collection('oracles').create({
+        name: oracleName,
+        email: walletEmail,
+        wallet_address: wallet.toLowerCase(),
+        github_username: githubUsername,
+        birth_issue: birthIssueNum,
+        password: wallet.toLowerCase(),
+        passwordConfirm: wallet.toLowerCase(),
+        karma: 0,
+        approved: true
+      })
+      created = true
+
+      return c.json({
+        success: true,
+        github_username: githubUsername,
+        birth_issue: birthIssueNum,
+        wallet: wallet.toLowerCase(),
+        oracle_name: oracleName,
+        fully_verified: true,
+        created: true
+      })
+    } catch (e: any) {
+      return c.json({ success: false, error: 'Failed to create Oracle: ' + e.message }, 500)
+    }
   }
 })
 
