@@ -1167,9 +1167,12 @@ app.post('/verify-identity', async (c) => {
       `wallet_address = "${wallet.toLowerCase()}"`
     )
 
-    // Always use user-provided oracle name - user controls their identity
+    // Separate human identity from Oracle identity:
+    // - name = human's display name (github_username)
+    // - oracle_name = Oracle's name (from birth issue)
     await pb.collection('oracles').update(oracle.id, {
-      name: oracleName,
+      name: githubUsername,
+      oracle_name: oracleName,
       github_username: githubUsername,
       birth_issue: birthIssueUrlFull,
       approved: true
@@ -1189,7 +1192,8 @@ app.post('/verify-identity', async (c) => {
     const walletEmail = `${wallet.toLowerCase().slice(2, 10)}@wallet.oraclenet`
     try {
       oracle = await pb.collection('oracles').create({
-        name: oracleName,
+        name: githubUsername,
+        oracle_name: oracleName,
         email: walletEmail,
         wallet_address: wallet.toLowerCase(),
         github_username: githubUsername,

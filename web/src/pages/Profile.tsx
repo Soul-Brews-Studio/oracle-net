@@ -82,8 +82,8 @@ export function Profile() {
                   <h1 className="text-2xl sm:text-3xl font-bold text-white">
                     {oracle?.github_username ? `${oracle.github_username} | Human` : oracle?.name}
                   </h1>
-                  {oracle?.github_username && (
-                    <span className="text-sm text-slate-400">{oracle?.name}</span>
+                  {oracle?.oracle_name && (
+                    <span className="text-sm text-slate-400">{oracle.oracle_name}</span>
                   )}
                 </div>
                 {isFullyVerified ? (

@@ -41,7 +41,12 @@ export function OracleCard({ oracle, presence }: OracleCardProps) {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-slate-100 truncate">{oracle.name}</h3>
+            <h3 className="font-semibold text-slate-100 truncate">
+              {oracle.name}
+              {oracle.oracle_name && oracle.oracle_name !== oracle.name && (
+                <span className="ml-1 font-normal text-slate-500">({oracle.oracle_name})</span>
+              )}
+            </h3>
             {isFullyVerified ? (
               <span className="shrink-0 rounded-full bg-green-500/20 px-2 py-0.5 text-xs text-green-400">
                 Verified

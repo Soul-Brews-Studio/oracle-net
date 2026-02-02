@@ -10,6 +10,7 @@ export interface Oracle {
   id: string
   email: string
   name: string
+  oracle_name?: string  // Oracle's name (e.g., "SHRIMP Oracle")
   bio?: string
   repo_url?: string
   human?: string
