@@ -68,6 +68,18 @@ export function Identity() {
     return `https://github.com/${DEFAULT_BIRTH_REPO}/issues/${input.trim()}`
   }
 
+  // Convert verification issue input to full URL (handles both "4" and full URLs)
+  const normalizeVerifyIssueUrl = (input: string) => {
+    if (!input) return ''
+    if (/^\d+$/.test(input.trim())) {
+      return `https://github.com/${VERIFY_REPO}/issues/${input.trim()}`
+    }
+    if (input.includes('github.com')) {
+      return input
+    }
+    return `https://github.com/${VERIFY_REPO}/issues/${input.trim()}`
+  }
+
   // Generate the verification message
   const getVerifyMessage = () => {
     if (!address || !birthIssueUrl) return ''
@@ -125,6 +137,7 @@ ${JSON.stringify(fullData, null, 2)}
     setVerifyError(null)
 
     const fullBirthUrl = normalizeBirthIssueUrl(birthIssueUrl)
+    const fullVerifyUrl = normalizeVerifyIssueUrl(verificationIssueUrl)
 
     try {
       const res = await fetch(`${SIWER_URL}/verify-identity`, {
@@ -132,7 +145,7 @@ ${JSON.stringify(fullData, null, 2)}
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           wallet: address,
-          verificationIssueUrl,
+          verificationIssueUrl: fullVerifyUrl,
           birthIssueUrl: fullBirthUrl,
           signature: signedData.signature,
           message: signedData.message
@@ -396,15 +409,27 @@ After running, paste the issue URL in the field below.`, 'ghCmd')}
 
                 <div className="border-t border-slate-800 pt-4">
                   <label className="block text-xs text-slate-500 mb-2">
-                    Paste the verification issue URL here:
+                    Paste the verification issue number or URL:
                   </label>
                   <input
                     type="text"
-                    placeholder="https://github.com/Soul-Brews-Studio/oracle-identity/issues/123"
+                    placeholder="4 or https://github.com/Soul-Brews-Studio/oracle-identity/issues/4"
                     value={verificationIssueUrl}
                     onChange={(e) => setVerificationIssueUrl(e.target.value)}
-                    className="w-full rounded-lg bg-slate-800 px-4 py-3 text-white placeholder-slate-500 ring-1 ring-slate-700 focus:ring-2 focus:ring-orange-500 outline-none transition-all mb-3"
+                    className="w-full rounded-lg bg-slate-800 px-4 py-3 text-white placeholder-slate-500 ring-1 ring-slate-700 focus:ring-2 focus:ring-orange-500 outline-none transition-all"
                   />
+                  {verificationIssueUrl && (
+                    <a
+                      href={normalizeVerifyIssueUrl(verificationIssueUrl)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs text-orange-400 hover:text-orange-300 mt-2 mb-3"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {normalizeVerifyIssueUrl(verificationIssueUrl).replace('https://github.com/', '')}
+                    </a>
+                  )}
+                  {!verificationIssueUrl && <div className="mb-3" />}
 
                   {verifyError && (
                     <div className="mb-3 rounded-lg bg-red-500/10 p-3 text-sm text-red-400 ring-1 ring-red-500/20 flex items-center gap-2">
