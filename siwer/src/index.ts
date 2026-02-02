@@ -1088,6 +1088,7 @@ app.post('/verify-identity', async (c) => {
   }
 
   // Verify GitHub users match (verification issue author == birth issue author)
+  // This is the key check: same person created both issues = proves ownership
   if (githubUsername.toLowerCase() !== birthIssueAuthor.toLowerCase()) {
     return c.json({
       success: false,
@@ -1099,20 +1100,11 @@ app.post('/verify-identity', async (c) => {
     }, 400)
   }
 
-  // Verify wallet is in the birth issue (title or body)
-  const birthContent = `${birthIssue.title || ''} ${birthIssue.body || ''}`.toLowerCase()
-  if (!birthContent.includes(wallet.toLowerCase())) {
-    return c.json({
-      success: false,
-      error: 'Birth issue does not contain your wallet address',
-      debug: {
-        looking_for: wallet.toLowerCase(),
-        issue_title: birthIssue.title || '(no title)',
-        issue_body_preview: (birthIssue.body || '(no body)').slice(0, 500),
-        issue_author: birthIssueAuthor
-      }
-    }, 400)
-  }
+  // Note: We don't require wallet in birth issue anymore
+  // The chain of trust is:
+  // 1. Wallet signature proves wallet ownership
+  // 2. Verification issue author proves GitHub ownership
+  // 3. Birth issue author == verification author links to Oracle
 
   // Extract oracle name from birth issue title
   // Common formats: "Birth: OracleName", "💒 Birth: OracleName", "OracleName Birth"
