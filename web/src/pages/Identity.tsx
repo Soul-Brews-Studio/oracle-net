@@ -110,23 +110,20 @@ export function Identity() {
     }
   }
 
+  // Generate full signed data for both gh command and GitHub link
+  const getSignedBody = () => {
+    if (!signedData) return ''
+    return JSON.stringify({
+      ...JSON.parse(signedData.message),
+      signature: signedData.signature
+    }, null, 2)
+  }
+
   // Generate GitHub issue URL for verification
   const getVerifyIssueUrl = () => {
     if (!signedData || !address) return ''
     const title = encodeURIComponent(`Verify: ${address.slice(0, 10)}...`)
-    const fullData = {
-      ...JSON.parse(signedData.message),
-      signature: signedData.signature
-    }
-    const body = encodeURIComponent(`### Oracle Identity Verification
-
-I am verifying my wallet address for OracleNet.
-
-**Wallet:** \`${address}\`
-
-\`\`\`json
-${JSON.stringify(fullData, null, 2)}
-\`\`\``)
+    const body = encodeURIComponent(getSignedBody())
     return `https://github.com/${VERIFY_REPO}/issues/new?title=${title}&body=${body}&labels=verification`
   }
 
@@ -372,7 +369,7 @@ gh issue create \\
   --repo ${VERIFY_REPO} \\
   --title "Verify: ${address?.slice(0, 10)}..." \\
   --label "verification" \\
-  --body '${JSON.stringify({...JSON.parse(signedData.message), signature: signedData.signature}, null, 2)}'
+  --body '${getSignedBody()}'
 
 After running, paste the issue URL in the field below.`}
                     </pre>
@@ -389,7 +386,7 @@ gh issue create \\
   --repo ${VERIFY_REPO} \\
   --title "Verify: ${address?.slice(0, 10)}..." \\
   --label "verification" \\
-  --body '${JSON.stringify({...JSON.parse(signedData.message), signature: signedData.signature}, null, 2)}'
+  --body '${getSignedBody()}'
 
 After running, paste the issue URL in the field below.`, 'ghCmd')}
                       className="absolute right-2 top-2 rounded bg-slate-700 p-1.5 text-slate-400 hover:bg-slate-600 hover:text-slate-200 cursor-pointer transition-colors"
