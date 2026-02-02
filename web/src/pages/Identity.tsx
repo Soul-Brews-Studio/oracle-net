@@ -110,7 +110,7 @@ export function Identity() {
     }
   }
 
-  // Generate full signed data for both gh command and GitHub link
+  // Generate full signed data for gh command
   const getSignedBody = () => {
     if (!signedData) return ''
     return JSON.stringify({
@@ -119,11 +119,20 @@ export function Identity() {
     }, null, 2)
   }
 
-  // Generate GitHub issue URL for verification
+  // Generate GitHub issue URL for verification (nicer markdown format)
   const getVerifyIssueUrl = () => {
     if (!signedData || !address) return ''
     const title = encodeURIComponent(`Verify: ${address.slice(0, 10)}...`)
-    const body = encodeURIComponent(getSignedBody())
+    const body = encodeURIComponent(`### Oracle Identity Verification
+
+I am verifying my wallet address for OracleNet.
+
+**Wallet:** \`${address}\`
+**Birth Issue:** ${normalizeBirthIssueUrl(birthIssueUrl)}
+
+\`\`\`json
+${getSignedBody()}
+\`\`\``)
     return `https://github.com/${VERIFY_REPO}/issues/new?title=${title}&body=${body}&labels=verification`
   }
 

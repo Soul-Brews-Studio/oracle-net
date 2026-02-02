@@ -1081,6 +1081,24 @@ app.post('/verify-identity', async (c) => {
     return c.json({ success: false, error: 'Failed to fetch birth issue: ' + e.message }, 400)
   }
 
+  // Get birth issue author
+  const birthIssueAuthor = birthIssue.user?.login
+  if (!birthIssueAuthor) {
+    return c.json({ success: false, error: 'Could not determine birth issue author' }, 400)
+  }
+
+  // Verify GitHub users match (verification issue author == birth issue author)
+  if (githubUsername.toLowerCase() !== birthIssueAuthor.toLowerCase()) {
+    return c.json({
+      success: false,
+      error: 'GitHub user mismatch: verification issue and birth issue must be created by the same user',
+      debug: {
+        verification_author: githubUsername,
+        birth_author: birthIssueAuthor
+      }
+    }, 400)
+  }
+
   // Verify wallet is in the birth issue (title or body)
   const birthContent = `${birthIssue.title || ''} ${birthIssue.body || ''}`.toLowerCase()
   if (!birthContent.includes(wallet.toLowerCase())) {
@@ -1091,9 +1109,19 @@ app.post('/verify-identity', async (c) => {
         looking_for: wallet.toLowerCase(),
         issue_title: birthIssue.title || '(no title)',
         issue_body_preview: (birthIssue.body || '(no body)').slice(0, 500),
-        issue_author: birthIssue.user?.login || '(unknown)'
+        issue_author: birthIssueAuthor
       }
     }, 400)
+  }
+
+  // Extract oracle name from birth issue title
+  // Common formats: "Birth: OracleName", "💒 Birth: OracleName", "OracleName Birth"
+  const birthTitle = birthIssue.title || ''
+  let oracleName = githubUsername // fallback to GitHub username
+
+  const birthMatch2 = birthTitle.match(/[Bb]irth[:\s]+(.+)/) || birthTitle.match(/(.+?)\s*[Bb]irth/)
+  if (birthMatch2) {
+    oracleName = birthMatch2[1].trim().replace(/^[🦐🦞\s]+/, '').trim()
   }
 
   const birthIssueNum = parseInt(birthIssueNumber)
@@ -1104,7 +1132,7 @@ app.post('/verify-identity', async (c) => {
     verified_at: new Date().toISOString()
   }))
 
-  // 5. Update Oracle in PocketBase with both github_username and birth_issue → approved
+  // 5. Update Oracle in PocketBase with github_username, birth_issue, and oracle name → approved
   const pb = new PocketBase(c.env.POCKETBASE_URL)
 
   try {
@@ -1113,15 +1141,17 @@ app.post('/verify-identity', async (c) => {
       `wallet_address = "${wallet.toLowerCase()}"`
     )
 
-    // Update with both values and set approved
+    // Update with all values and set approved
     const isGenericName = oracle.name?.startsWith('Oracle-')
     await pb.collection('_superusers').authWithPassword(c.env.PB_ADMIN_EMAIL, c.env.PB_ADMIN_PASSWORD)
 
+    const finalName = isGenericName ? oracleName : oracle.name
+
     await pb.collection('oracles').update(oracle.id, {
+      name: finalName,
       github_username: githubUsername,
       birth_issue: birthIssueNum,
-      approved: true,
-      ...(isGenericName ? { name: githubUsername } : {})
+      approved: true
     })
 
     return c.json({
@@ -1129,7 +1159,7 @@ app.post('/verify-identity', async (c) => {
       github_username: githubUsername,
       birth_issue: birthIssueNum,
       wallet: wallet.toLowerCase(),
-      oracle_name: isGenericName ? githubUsername : oracle.name,
+      oracle_name: finalName,
       fully_verified: true
     })
   } catch (e: any) {
