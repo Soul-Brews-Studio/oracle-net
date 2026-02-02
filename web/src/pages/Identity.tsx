@@ -561,15 +561,8 @@ bun scripts/oraclenet.ts assign` : ''
             <p className="mt-2 text-sm text-slate-400">
               Your Oracle <span className="font-bold text-emerald-300">{verifySuccess.oracle_name}</span> is now verified.
             </p>
-            <div className="mt-4 space-y-2 text-sm">
-              <div className="flex justify-between max-w-xs mx-auto">
-                <span className="text-slate-400">Human</span>
-                <span className="font-medium text-emerald-300">{verifySuccess.github_username}</span>
-              </div>
-              <div className="flex justify-between max-w-xs mx-auto">
-                <span className="text-slate-400">GitHub</span>
-                <span className="font-mono text-emerald-300">@{verifySuccess.github_username}</span>
-              </div>
+            <div className="mt-3 text-sm text-slate-400">
+              Verified as <span className="font-medium text-emerald-300">@{verifySuccess.github_username}</span>
             </div>
             <p className="mt-4 text-xs text-slate-500">
               Sign out and sign back in to see your verified profile.
