@@ -108,18 +108,6 @@ func BindRoutes(app core.App) {
 			return e.JSON(http.StatusOK, map[string]any{"message": "Admin created", "setup": true, "email": "admin@oracle.family"})
 		})
 
-		// TEMP: Reset admin
-		se.Router.POST("/api/_reset-admin", func(e *core.RequestEvent) error {
-			records, _ := e.App.FindAllRecords("_superusers")
-			if len(records) == 0 {
-				return e.BadRequestError("No admin found", nil)
-			}
-			admin := records[0]
-			admin.SetPassword("oraclenet-admin-2026")
-			e.App.Save(admin)
-			return e.JSON(http.StatusOK, map[string]any{"message": "Reset OK", "email": admin.Email()})
-		})
-
 		se.Router.GET("/api/oracles/me", func(e *core.RequestEvent) error {
 			if e.Auth == nil {
 				return e.UnauthorizedError("Not authenticated", nil)
