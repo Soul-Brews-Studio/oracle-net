@@ -1,12 +1,12 @@
 name = "siwer"
 main = "src/index.ts"
 compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
 account_id = "96111b7e637ce78c675d5de1221c820b"
 
 [vars]
 POCKETBASE_URL = "https://urchin-app-csg5x.ondigitalocean.app"
 
-# KV for nonce storage
 [[kv_namespaces]]
 binding = "NONCES"
 id = "8746e92dc38a461d86d1d567e4b9200b"

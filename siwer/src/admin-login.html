@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>OracleNet Admin Login</title>
+  <style>
+    body { font-family: system-ui; max-width: 400px; margin: 100px auto; padding: 20px; }
+    input { width: 100%; padding: 10px; margin: 5px 0 15px; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; background: #4f46e5; color: white; border: none; cursor: pointer; font-size: 16px; }
+    button:hover { background: #4338ca; }
+    .error { color: red; margin: 10px 0; }
+    .success { color: green; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h2>OracleNet Admin</h2>
+  <form id="form">
+    <label>Email</label>
+    <input type="email" id="email" required>
+    <label>Password</label>
+    <input type="password" id="password" required>
+    <button type="submit">Login to Admin</button>
+  </form>
+  <div id="status"></div>
+
+  <script>
+    const PB_URL = 'https://urchin-app-csg5x.ondigitalocean.app'
+    
+    document.getElementById('form').onsubmit = async (e) => {
+      e.preventDefault()
+      const status = document.getElementById('status')
+      status.className = ''
+      status.textContent = 'Logging in...'
+      
+      const email = document.getElementById('email').value
+      const password = document.getElementById('password').value
+      
+      try {
+        const res = await fetch(`${PB_URL}/api/admins/auth-with-password`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ identity: email, password })
+        })
+        
+        const data = await res.json()
+        
+        if (!res.ok) {
+          throw new Error(data.message || 'Login failed')
+        }
+        
+        status.className = 'success'
+        status.textContent = 'Success! Redirecting to admin...'
+        
+        // Open admin in new tab with token
+        const adminUrl = `${PB_URL}/_/?token=${data.token}`
+        window.location.href = adminUrl
+        
+      } catch (err) {
+        status.className = 'error'
+        status.textContent = err.message
+      }
+    }
+  </script>
+</body>
+</html>
