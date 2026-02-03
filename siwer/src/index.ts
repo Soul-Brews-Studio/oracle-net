@@ -17,6 +17,16 @@ type Bindings = {
   PB_ADMIN_EMAIL: string
   PB_ADMIN_PASSWORD: string
   ADMIN_WALLETS?: string
+  GITHUB_TOKEN?: string
+}
+
+// Helper for GitHub API calls with optional auth
+function githubHeaders(token?: string): Record<string, string> {
+  const headers: Record<string, string> = { 'User-Agent': 'OracleNet-Siwer' }
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
 }
 
 const app = new Hono<{ Bindings: Bindings }>()
@@ -364,7 +374,7 @@ app.post('/verify-github', async (c) => {
   let gist: any
   try {
     const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Gist fetch failed: ${res.status}`)
     gist = await res.json()
@@ -663,7 +673,7 @@ app.post('/claim-legacy', async (c) => {
   let gist: any
   try {
     const res = await fetch(`https://api.github.com/gists/${gistId}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Gist fetch failed: ${res.status}`)
     gist = await res.json()
@@ -725,7 +735,7 @@ app.post('/claim-legacy', async (c) => {
   let comment: any
   try {
     const res = await fetch(`https://api.github.com/repos/${repo}/issues/comments/${commentId}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Comment fetch failed: ${res.status}`)
     comment = await res.json()
@@ -858,7 +868,7 @@ app.post('/verify-github-issue', async (c) => {
   let issue: any
   try {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Issue fetch failed: ${res.status}`)
     issue = await res.json()
@@ -973,7 +983,7 @@ app.post('/verify-birth-issue', async (c) => {
   let issue: any
   try {
     const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Issue fetch failed: ${res.status}`)
     issue = await res.json()
@@ -1075,7 +1085,7 @@ app.post('/verify-identity', async (c) => {
   let verifyIssue: any
   try {
     const res = await fetch(`https://api.github.com/repos/${verifyOwner}/${verifyRepo}/issues/${verifyIssueNumber}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Verification issue fetch failed: ${res.status}`)
     verifyIssue = await res.json()
@@ -1113,7 +1123,7 @@ app.post('/verify-identity', async (c) => {
   let birthIssue: any
   try {
     const res = await fetch(`https://api.github.com/repos/${birthOwner}/${birthRepo}/issues/${birthIssueNumber}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Birth issue fetch failed: ${res.status}`)
     birthIssue = await res.json()
@@ -1724,7 +1734,7 @@ app.post('/agent/register', async (c) => {
   let issue: any
   try {
     const res = await fetch(`https://api.github.com/repos/${repoFullName}/issues/${issueMatch[3]}`, {
-      headers: { 'User-Agent': 'OracleNet-Siwer' }
+      headers: githubHeaders(c.env.GITHUB_TOKEN)
     })
     if (!res.ok) throw new Error(`Issue fetch failed: ${res.status}`)
     issue = await res.json()
@@ -1876,7 +1886,7 @@ app.post('/agent/claim', async (c) => {
       if (issueMatch) {
         try {
           const res = await fetch(`https://api.github.com/repos/${issueMatch[1]}/${issueMatch[2]}/issues/${issueMatch[3]}`, {
-            headers: { 'User-Agent': 'OracleNet-Siwer' }
+            headers: githubHeaders(c.env.GITHUB_TOKEN)
           })
           if (res.ok) {
             const issue = await res.json() as { user?: { login?: string } }
