@@ -1,0 +1,44 @@
+import { defineConfig, devices } from '@playwright/test'
+
+/**
+ * Playwright E2E Test Configuration for OracleNet
+ *
+ * Run tests:
+ *   bunx playwright test
+ *   bunx playwright test --ui
+ *   bunx playwright test --headed
+ */
+export default defineConfig({
+  testDir: './tests',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+  reporter: 'html',
+
+  use: {
+    // Base URL for tests
+    baseURL: process.env.TEST_BASE_URL || 'http://localhost:5173',
+
+    // Collect trace on failure
+    trace: 'on-first-retry',
+
+    // Screenshot on failure
+    screenshot: 'only-on-failure',
+  },
+
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+  ],
+
+  // Run local dev server before tests
+  webServer: {
+    command: 'bun run dev',
+    url: 'http://localhost:5173',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+  },
+})
