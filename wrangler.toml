@@ -1,6 +1,7 @@
 name = "oracle-net"
 compatibility_date = "2025-01-01"
 workers_dev = true
+account_id = "a5eabdc2b11aae9bd5af46bd6a88179e"
 
 [assets]
 directory = "./dist"
