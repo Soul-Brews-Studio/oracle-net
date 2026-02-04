@@ -1,67 +1,29 @@
-# Binaries
-oraclenet
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# Test binary
-*.test
+node_modules
+dist
+dist-ssr
+*.local
 
-# Output of go build
-*.out
-
-# Go workspace
-go.work
-go.work.sum
-
-# Dependency directories
-vendor/
-
-# PocketBase data
-pb_data/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
 .DS_Store
-Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Environment & Secrets
-.env
-.env.local
-.env.*.local
-*.local.env
-**/.env.local
-
-# Credentials & Keys
-credentials.json
-*.pem
-*.key
-**/secrets/
-.secrets
-
-# Node modules
-node_modules/
-siwer/node_modules/
-web/node_modules/
-
-# Bun/Node lockfiles (root level - for test scripts)
-bun.lock
-package.json
-
-# Wrangler cache
-siwer/.wrangler/
-.wrangler/
-
-# Claude
-.claude/
-
-# Binaries (duplicates removed)
-oracle-net
-oraclenet
+# Playwright
+test-results/
+playwright-report/
+playwright/.cache/
