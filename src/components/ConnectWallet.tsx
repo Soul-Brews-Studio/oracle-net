@@ -1,5 +1,5 @@
 import { useAccount, useConnect, useDisconnect, useSignMessage, useChainId } from 'wagmi'
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createSiweMessage } from 'viem/siwe'
 import { useAuth } from '../contexts/AuthContext'
 import { API_URL } from '../lib/wagmi'
@@ -19,6 +19,18 @@ export default function ConnectWallet() {
   const [showPreview, setShowPreview] = useState(false)
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
+
+  // Track previous connection state to detect fresh connects
+  const wasConnected = useRef(false)
+
+  useEffect(() => {
+    // Only trigger on fresh connection (false → true)
+    if (isConnected && !wasConnected.current && address && !pb.authStore.isValid) {
+      // Auto-prepare SIWE message
+      prepareSignIn()
+    }
+    wasConnected.current = isConnected
+  }, [isConnected, address])
 
   // Handle wallet connect + SIWE auth
   const handleConnect = async () => {

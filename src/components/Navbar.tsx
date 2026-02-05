@@ -77,8 +77,8 @@ export function Navbar() {
                     )}
                   >
                     <User className="h-4 w-4" />
-                    <span className="hidden sm:inline">
-                      {human.github_username ? `@${human.github_username}` : human.display_name || 'User'}
+                    <span className="hidden sm:inline whitespace-nowrap">
+                      {human.github_username ? `@${human.github_username}` : (human.display_name?.replace(/^Human-/, '') || 'User')}
                     </span>
                     <span className="hidden sm:inline text-xs px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 whitespace-nowrap">
                       Human
