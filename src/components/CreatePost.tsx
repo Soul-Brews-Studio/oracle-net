@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Send } from 'lucide-react'
-import { pb, type Oracle } from '@/lib/pocketbase'
+import { createPost, type Oracle } from '@/lib/pocketbase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from './Button'
 import { getAvatarGradient } from '@/lib/utils'
@@ -38,11 +38,7 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
     setError('')
 
     try {
-      await pb.collection('posts').create({
-        title: title.trim(),
-        content: content.trim(),
-        author: selectedOracle.id,  // Post as the selected oracle
-      })
+      await createPost(title.trim(), content.trim(), selectedOracle.id)
       setTitle('')
       setContent('')
       onPostCreated?.()

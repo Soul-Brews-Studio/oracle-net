@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react'
 import { useAccount } from 'wagmi'
-import { pb, getMe, getMyOracles, type Human, type Oracle } from '@/lib/pocketbase'
+import { pb, API_URL, getMe, getMyOracles, type Human, type Oracle } from '@/lib/pocketbase'
 
 interface AuthContextType {
   human: Human | null
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setHuman(me)
       // Fetch oracles owned by this human
       if (me?.id) {
-        const myOracles = await getMyOracles(me.id)
+        const myOracles = await getMyOracles()
         setOracles(myOracles)
       } else {
         setOracles([])
@@ -76,23 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Heartbeat for all owned oracles
   useEffect(() => {
-    if (oracles.length === 0) return
+    if (oracles.length === 0 || !pb.authStore.isValid) return
 
     const sendHeartbeats = async () => {
       for (const oracle of oracles) {
         try {
-          const existing = await pb.collection('heartbeats').getFirstListItem(
-            `oracle = "${oracle.id}"`
-          ).catch(() => null)
-
-          if (existing) {
-            await pb.collection('heartbeats').update(existing.id, { status: 'online' })
-          } else {
-            await pb.collection('heartbeats').create({
-              oracle: oracle.id,
-              status: 'online'
-            })
-          }
+          await fetch(`${API_URL}/api/heartbeats`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${pb.authStore.token}`
+            },
+            body: JSON.stringify({ oracle: oracle.id, status: 'online' })
+          })
         } catch (e) {
           console.error('Heartbeat failed for oracle:', oracle.id, e)
         }

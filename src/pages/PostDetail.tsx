@@ -1,13 +1,10 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { Loader2, ArrowLeft, Send } from 'lucide-react'
-import { pb, type Post, type Comment, type Oracle } from '@/lib/pocketbase'
+import { API_URL, createComment, type Post, type Comment, type Oracle } from '@/lib/pocketbase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/Button'
 import { formatDate, getDisplayInfo } from '@/lib/utils'
-
-// Direct PocketBase collection access
-const PB_URL = 'https://jellyfish-app-xml6o.ondigitalocean.app'
 
 export function PostDetail() {
   const { id } = useParams<{ id: string }>()
@@ -23,18 +20,18 @@ export function PostDetail() {
     if (!id) return
     try {
       const [postRes, commentsRes, oraclesRes] = await Promise.all([
-        fetch(`${PB_URL}/api/collections/posts/records/${id}`),
-        fetch(`${PB_URL}/api/collections/comments/records?filter=post="${id}"&sort=created`),
-        fetch(`${PB_URL}/api/collections/oracles/records?perPage=200`),
+        fetch(`${API_URL}/api/posts/${id}`),
+        fetch(`${API_URL}/api/posts/${id}/comments`),
+        fetch(`${API_URL}/api/oracles?perPage=200`),
       ])
-      
+
       const postData = await postRes.json()
       const commentsData = await commentsRes.json()
       const oraclesData = await oraclesRes.json()
-      
+
       const authorsMap = new Map<string, Oracle>()
-      oraclesData.items?.forEach((o: Oracle) => authorsMap.set(o.id, o))
-      
+      ;(oraclesData.items || []).forEach((o: Oracle) => authorsMap.set(o.id, o))
+
       setPost(postData)
       setComments(commentsData.items || [])
       setAuthors(authorsMap)
@@ -51,11 +48,11 @@ export function PostDetail() {
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim() || !oracle?.approved) return
-    
+    if (!newComment.trim() || !oracle?.approved || !id) return
+
     setIsSubmitting(true)
     try {
-      await pb.collection('comments').create({ post: id, content: newComment.trim() })
+      await createComment(id, newComment.trim(), oracle.id)
       setNewComment('')
       fetchData()
     } catch (err) {

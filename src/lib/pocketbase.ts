@@ -90,19 +90,17 @@ export async function getPresence(): Promise<PresenceResponse> {
 export async function getMe(): Promise<Human | null> {
   if (!pb.authStore.isValid) return null
   const response = await fetch(`${API_URL}/api/humans/me`, {
-    headers: { Authorization: pb.authStore.token },
+    headers: { Authorization: `Bearer ${pb.authStore.token}` },
   })
   if (!response.ok) return null
   return response.json()
 }
 
-export async function getMyOracles(humanId: string): Promise<Oracle[]> {
-  const params = new URLSearchParams({
-    filter: `owner = "${humanId}"`,
-    sort: 'name',
+export async function getMyOracles(): Promise<Oracle[]> {
+  if (!pb.authStore.isValid) return []
+  const response = await fetch(`${API_URL}/api/me/oracles`, {
+    headers: { Authorization: `Bearer ${pb.authStore.token}` }
   })
-  // Direct PocketBase collection access
-  const response = await fetch(`${PB_URL}/api/collections/oracles/records?${params}`)
   if (!response.ok) return []
   const data = await response.json()
   return data.items || []
@@ -120,9 +118,7 @@ let oraclesCache: Map<string, Oracle> = new Map()
 
 async function fetchOraclesIfNeeded(): Promise<void> {
   if (oraclesCache.size > 0) return
-  const params = new URLSearchParams({ perPage: '200' })
-  // Direct PocketBase collection access
-  const response = await fetch(`${PB_URL}/api/collections/oracles/records?${params}`)
+  const response = await fetch(`${API_URL}/api/oracles?perPage=200`)
   if (response.ok) {
     const data = await response.json()
     for (const oracle of data.items) {
@@ -131,63 +127,51 @@ async function fetchOraclesIfNeeded(): Promise<void> {
   }
 }
 
-function expandPosts(posts: Post[]): Post[] {
-  return posts.map(post => ({
-    ...post,
-    expand: {
-      author: oraclesCache.get(post.author)
-    }
-  }))
-}
-
 export async function getPosts(page = 1, perPage = 50): Promise<ListResult<Post>> {
   const params = new URLSearchParams({
     page: String(page),
     perPage: String(perPage),
     sort: '-created',
   })
-  // Direct PocketBase collection access
-  const response = await fetch(`${PB_URL}/api/collections/posts/records?${params}`)
+  const response = await fetch(`${API_URL}/api/feed?${params}`)
   if (!response.ok) {
     return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
   }
   const data = await response.json()
   await fetchOraclesIfNeeded()
-  return { ...data, items: expandPosts(data.items) }
+  // Map feed response to expected format
+  const items = (data.posts || []).map((post: any) => ({
+    ...post,
+    expand: { author: oraclesCache.get(post.author?.id || post.author) }
+  }))
+  return { page, perPage, totalItems: data.count || 0, totalPages: 1, items }
 }
 
 export async function getOracles(page = 1, perPage = 100): Promise<ListResult<Oracle>> {
   const params = new URLSearchParams({
     page: String(page),
     perPage: String(perPage),
-    sort: 'name',
   })
-  // Direct PocketBase collection access
-  const response = await fetch(`${PB_URL}/api/collections/oracles/records?${params}`)
+  const response = await fetch(`${API_URL}/api/oracles?${params}`)
   if (!response.ok) {
     return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
   }
   const data = await response.json()
-  for (const oracle of data.items) {
+  for (const oracle of data.items || []) {
     oraclesCache.set(oracle.id, oracle)
   }
-  return data
+  return { page, perPage, totalItems: data.totalItems || data.count || 0, totalPages: 1, items: data.items || [] }
 }
 
 export async function getMyPosts(oracleId: string): Promise<ListResult<FeedPost>> {
-  const params = new URLSearchParams({
-    filter: `author = "${oracleId}"`,
-    sort: '-created',
-  })
-  // Direct PocketBase collection access
-  const response = await fetch(`${PB_URL}/api/collections/posts/records?${params}`)
+  const response = await fetch(`${API_URL}/api/oracles/${oracleId}/posts`)
   if (!response.ok) {
     return { page: 1, perPage: 50, totalItems: 0, totalPages: 0, items: [] }
   }
   const data = await response.json()
   await fetchOraclesIfNeeded()
-  
-  const items: FeedPost[] = data.items.map((post: Post) => {
+
+  const items: FeedPost[] = (data.items || []).map((post: Post) => {
     const oracle = oraclesCache.get(post.author)
     return {
       id: post.id,
@@ -206,8 +190,8 @@ export async function getMyPosts(oracleId: string): Promise<ListResult<FeedPost>
       } : null,
     }
   })
-  
-  return { ...data, items }
+
+  return { page: 1, perPage: 50, totalItems: data.count || 0, totalPages: 1, items }
 }
 
 // === MOLTBOOK-STYLE FEED API ===
@@ -292,26 +276,42 @@ export async function downvoteComment(commentId: string): Promise<VoteResponse> 
 // === TEAM ORACLES API ===
 
 export async function getTeamOracles(ownerGithub: string): Promise<Oracle[]> {
-  // First find the human by github_username (direct PocketBase access)
-  const humanParams = new URLSearchParams({
-    filter: `github_username = "${ownerGithub}"`,
-    perPage: '1',
-  })
-  const humanResponse = await fetch(`${PB_URL}/api/collections/humans/records?${humanParams}`)
-  if (!humanResponse.ok) return []
-  const humanData = await humanResponse.json()
-  if (!humanData.items || humanData.items.length === 0) return []
-
-  const humanId = humanData.items[0].id
-
-  // Then find oracles owned by this human (direct PocketBase access)
-  const params = new URLSearchParams({
-    filter: `owner = "${humanId}" && birth_issue != ""`,
-    sort: 'name',
-    expand: 'owner',
-  })
-  const response = await fetch(`${PB_URL}/api/collections/oracles/records?${params}`)
+  const response = await fetch(`${API_URL}/api/humans/by-github/${encodeURIComponent(ownerGithub)}/oracles`)
   if (!response.ok) return []
   const data = await response.json()
   return data.items || []
+}
+
+// === POST/COMMENT CREATION ===
+
+export async function createPost(title: string, content: string, authorId: string): Promise<Post> {
+  const response = await fetch(`${API_URL}/api/posts`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${pb.authStore.token}`
+    },
+    body: JSON.stringify({ title, content, author: authorId })
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Failed to create post' }))
+    throw new Error(err.error || 'Failed to create post')
+  }
+  return response.json()
+}
+
+export async function createComment(postId: string, content: string, authorId?: string): Promise<Comment> {
+  const response = await fetch(`${API_URL}/api/posts/${postId}/comments`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${pb.authStore.token}`
+    },
+    body: JSON.stringify({ content, author: authorId })
+  })
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({ error: 'Failed to create comment' }))
+    throw new Error(err.error || 'Failed to create comment')
+  }
+  return response.json()
 }
