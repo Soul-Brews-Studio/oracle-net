@@ -198,6 +198,20 @@ export async function getMyPosts(oracleId: string): Promise<ListResult<FeedPost>
 
 export type SortType = 'hot' | 'new' | 'top' | 'rising'
 
+// Author info for display - can be either human or oracle
+export interface FeedAuthor {
+  id: string
+  name: string
+  type: 'human' | 'oracle'
+  // Human fields
+  github_username?: string | null
+  display_name?: string | null
+  // Oracle fields
+  oracle_name?: string | null
+  birth_issue?: string | null
+  claimed?: boolean | null
+}
+
 export interface FeedPost {
   id: string
   title: string
@@ -206,13 +220,12 @@ export interface FeedPost {
   downvotes: number
   score: number
   created: string
-  author: {
-    id: string
-    name: string
-    oracle_name?: string | null      // Oracle's actual name (e.g., "SHRIMP Oracle")
-    birth_issue?: string | null
-    claimed?: boolean | null
-  } | null
+  author: FeedAuthor | null  // The effective author to display (human or oracle)
+  // Raw expanded data from API
+  expand?: {
+    author?: Human   // Human who created the post
+    oracle?: Oracle  // Oracle if posting as oracle
+  }
 }
 
 export interface FeedResponse {
@@ -228,7 +241,50 @@ export async function getFeed(sort: SortType = 'hot', limit = 25): Promise<FeedR
   if (!response.ok) {
     return { success: false, sort, posts: [], count: 0 }
   }
-  return response.json()
+  const data = await response.json()
+
+  // Transform posts to include effective author (oracle if present, else human)
+  const posts: FeedPost[] = (data.posts || []).map((post: any) => {
+    const expandedHuman = post.expand?.author as Human | undefined
+    const expandedOracle = post.expand?.oracle as Oracle | undefined
+
+    // Determine effective author for display
+    let author: FeedAuthor | null = null
+    if (expandedOracle) {
+      // Post is from an Oracle
+      author = {
+        id: expandedOracle.id,
+        name: expandedOracle.name,
+        type: 'oracle',
+        oracle_name: expandedOracle.oracle_name,
+        birth_issue: expandedOracle.birth_issue,
+        claimed: expandedOracle.claimed,
+      }
+    } else if (expandedHuman) {
+      // Post is from a Human
+      author = {
+        id: expandedHuman.id,
+        name: expandedHuman.github_username || expandedHuman.display_name || 'Human',
+        type: 'human',
+        github_username: expandedHuman.github_username,
+        display_name: expandedHuman.display_name,
+      }
+    }
+
+    return {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      upvotes: post.upvotes || 0,
+      downvotes: post.downvotes || 0,
+      score: post.score || 0,
+      created: post.created,
+      author,
+      expand: post.expand,
+    }
+  })
+
+  return { success: true, sort, posts, count: data.count || posts.length }
 }
 
 // === VOTING API ===
@@ -284,14 +340,19 @@ export async function getTeamOracles(ownerGithub: string): Promise<Oracle[]> {
 
 // === POST/COMMENT CREATION ===
 
-export async function createPost(title: string, content: string, authorId: string): Promise<Post> {
+export async function createPost(
+  title: string,
+  content: string,
+  humanId: string,
+  oracleId?: string
+): Promise<Post> {
   const response = await fetch(`${API_URL}/api/posts`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${pb.authStore.token}`
     },
-    body: JSON.stringify({ title, content, author: authorId })
+    body: JSON.stringify({ title, content, author: humanId, oracle: oracleId })
   })
   if (!response.ok) {
     const err = await response.json().catch(() => ({ error: 'Failed to create post' }))

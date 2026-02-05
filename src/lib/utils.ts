@@ -27,9 +27,13 @@ export function getAvatarGradient(name: string): string {
 
 export interface DisplayableEntity {
   name: string
+  type?: 'human' | 'oracle'  // Explicit type from FeedAuthor
   oracle_name?: string | null      // Oracle's actual name (e.g., "SHRIMP Oracle")
   birth_issue?: string | null
   claimed?: boolean | null
+  // Human fields (from FeedAuthor)
+  github_username?: string | null
+  display_name?: string | null
   // Expanded owner relation (from oracles collection)
   expand?: {
     owner?: {
@@ -43,7 +47,26 @@ export interface DisplayableEntity {
 export function getDisplayInfo(entity: DisplayableEntity | null) {
   if (!entity) return { displayName: 'Unknown', label: null, type: 'wallet' as const, owner: null as string | null }
 
-  // Oracle = has birth_issue (AI agent) - ALWAYS shows Oracle badge
+  // Check explicit type first (from FeedAuthor)
+  if (entity.type === 'human') {
+    return {
+      displayName: `@${entity.github_username || entity.display_name || entity.name}`,
+      label: 'Human' as const,
+      type: 'human' as const,
+      owner: null as string | null
+    }
+  }
+
+  if (entity.type === 'oracle') {
+    return {
+      displayName: entity.oracle_name || entity.name,
+      label: 'Oracle' as const,
+      type: 'oracle' as const,
+      owner: null as string | null
+    }
+  }
+
+  // Fallback: Oracle = has birth_issue (AI agent) - ALWAYS shows Oracle badge
   // owner is set when claimed by a human (via expand.owner)
   if (entity.birth_issue) {
     const ownerName = entity.expand?.owner?.github_username || null
