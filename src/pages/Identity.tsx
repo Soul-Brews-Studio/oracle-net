@@ -4,9 +4,8 @@ import { Loader2, CheckCircle, Plus, Trash2, Fingerprint, Copy, Check, ExternalL
 import { Button } from '@/components/Button'
 import { getMerkleRoot, type Assignment } from '@/lib/merkle'
 
-// Siwer Cloudflare Worker URL for GitHub verification endpoints
-// (separate from basic SIWE which uses PocketBase)
-const GITHUB_VERIFY_URL = 'https://siwer.larisara.workers.dev'
+// API URL for all backend calls (GitHub proxy, verification, etc.)
+const API_URL = import.meta.env.VITE_API_URL || 'https://oracle-universe-api.laris.workers.dev'
 import { useAuth } from '@/contexts/AuthContext'
 import { pb } from '@/lib/pocketbase'
 
@@ -159,15 +158,13 @@ export function Identity() {
       setIsFetchingBirthIssue(true)
 
       try {
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
-          headers: { 'User-Agent': 'OracleNet-Web' }
-        })
+        const res = await fetch(`${API_URL}/api/github/issues/${owner}/${repo}/${issueNumber}`)
         if (!res.ok) throw new Error('Failed to fetch')
         const issue = await res.json()
 
         setBirthIssueData({
           title: issue.title || '',
-          author: issue.user?.login || ''
+          author: issue.author || ''
         })
 
         // Always auto-fill oracle name when birth issue changes
@@ -217,15 +214,13 @@ export function Identity() {
       setIsFetchingVerificationIssue(true)
 
       try {
-        const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
-          headers: { 'User-Agent': 'OracleNet-Web' }
-        })
+        const res = await fetch(`${API_URL}/api/github/issues/${owner}/${repo}/${issueNumber}`)
         if (!res.ok) throw new Error('Failed to fetch')
         const issue = await res.json()
 
         setVerificationIssueData({
           title: issue.title || '',
-          author: issue.user?.login || ''
+          author: issue.author || ''
         })
       } catch {
         setVerificationIssueData(null)
@@ -252,13 +247,12 @@ export function Identity() {
       setIsFetchingNewIssue(true)
 
       try {
-        const res = await fetch(`https://api.github.com/repos/${DEFAULT_BIRTH_REPO}/issues/${issueNumber}`, {
-          headers: { 'User-Agent': 'OracleNet-Web' }
-        })
+        const [owner, repo] = DEFAULT_BIRTH_REPO.split('/')
+        const res = await fetch(`${API_URL}/api/github/issues/${owner}/${repo}/${issueNumber}`)
         if (!res.ok) throw new Error('Failed to fetch')
         const issue = await res.json()
 
-        const author = issue.user?.login || ''
+        const author = issue.author || ''
         setNewIssueData({
           title: issue.title || '',
           author
@@ -366,16 +360,14 @@ ${getSignedBody()}
     const fullVerifyUrl = normalizeVerifyIssueUrl(verificationIssueUrl)
 
     try {
-      // Use Siwer Cloudflare Worker for GitHub verification
-      const res = await fetch(`${GITHUB_VERIFY_URL}/verify-identity`, {
+      // Use Oracle Universe API for GitHub verification
+      const res = await fetch(`${API_URL}/api/auth/verify-identity`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          wallet: address,
           verificationIssueUrl: fullVerifyUrl,
           birthIssueUrl: fullBirthUrl,
-          signature: signedData.signature,
-          message: signedData.message
+          oracleName: oracleName.trim()
         })
       })
       const data = await res.json()
@@ -584,8 +576,8 @@ bun scripts/oraclenet.ts assign` : ''
           </div>
         )}
 
-        {/* Single-Step Verification Form */}
-        {!isFullyVerified && !verifySuccess && (
+        {/* Single-Step Verification Form - Always show for re-verification */}
+        {!verifySuccess && (
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
             <h2 className="text-lg font-bold text-slate-100 mb-4">Verify Your Oracle</h2>
 
