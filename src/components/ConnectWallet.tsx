@@ -143,16 +143,6 @@ export default function ConnectWallet() {
     }
   }
 
-  // Cancel preview
-  const cancelPreview = () => {
-    setShowPreview(false)
-    setSiweMessage(null)
-    setChainlink(null)
-    setSignature(null)
-    setVerified(false)
-    setError(null)
-  }
-
   const handleDisconnect = () => {
     disconnect()
     pb.authStore.clear()
@@ -191,10 +181,10 @@ export default function ConnectWallet() {
 
         {/* Step-by-step flow like siwe-service */}
         {showPreview && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             {/* 1. Chainlink BTC/USD */}
             {chainlink && (
-              <div className="rounded-lg bg-slate-800/50 p-4 ring-1 ring-slate-700">
+              <div className="rounded-lg bg-slate-900 p-4 ring-1 ring-slate-800">
                 <p className="text-xs text-slate-500">1. Chainlink BTC/USD</p>
                 <p className="text-2xl font-bold text-orange-400">{formatPrice(chainlink.price)}</p>
                 <p className="text-xs text-slate-500">{new Date(chainlink.timestamp * 1000).toISOString()}</p>
@@ -202,14 +192,14 @@ export default function ConnectWallet() {
             )}
 
             {/* 2. Wallet Connected */}
-            <div className="rounded-lg bg-slate-800/50 p-4 ring-1 ring-slate-700">
+            <div className="rounded-lg bg-slate-900 p-4 ring-1 ring-slate-800">
               <p className="text-xs text-slate-500">2. Wallet Connected</p>
               <p className="text-sm font-mono text-slate-200">{address}</p>
             </div>
 
             {/* 3. Message */}
             {siweMessage && (
-              <div className="rounded-lg bg-slate-800/50 p-4 ring-1 ring-slate-700">
+              <div className="rounded-lg bg-slate-900 p-4 ring-1 ring-slate-800">
                 <p className="text-xs text-slate-500">3. Message</p>
                 <pre className="mt-2 text-xs text-slate-300 overflow-x-auto whitespace-pre-wrap break-all font-mono">
                   {siweMessage}
@@ -219,7 +209,7 @@ export default function ConnectWallet() {
 
             {/* 4. Signature (after signing) */}
             {signature && (
-              <div className="rounded-lg bg-slate-800/50 p-4 ring-1 ring-slate-700">
+              <div className="rounded-lg bg-slate-900 p-4 ring-1 ring-slate-800">
                 <p className="text-xs text-slate-500">4. Signature</p>
                 <p className="mt-1 text-xs font-mono text-slate-300 break-all">{signature}</p>
               </div>
@@ -227,7 +217,7 @@ export default function ConnectWallet() {
 
             {/* 5. Verified */}
             {verified && (
-              <div className="rounded-lg bg-slate-800/50 p-4 ring-1 ring-slate-700">
+              <div className="rounded-lg bg-slate-900 p-4 ring-1 ring-slate-800">
                 <p className="text-xs text-slate-500">5. Verified</p>
                 <p className="text-sm text-green-400">✓ Valid</p>
               </div>
@@ -235,7 +225,7 @@ export default function ConnectWallet() {
 
             {/* Authenticated result */}
             {verified && chainlink && (
-              <div className="rounded-lg bg-slate-800/50 p-5 ring-1 ring-emerald-500/30">
+              <div className="rounded-lg bg-slate-900 p-5 ring-1 ring-emerald-500/30">
                 <p className="text-lg font-bold text-emerald-400">Authenticated!</p>
                 <p className="mt-1 text-sm text-slate-300">
                   <span className="text-slate-500">Address:</span> <span className="font-mono">{address}</span>
@@ -249,17 +239,11 @@ export default function ConnectWallet() {
 
             {/* Sign button (before signing) */}
             {!signature && (
-              <div className="flex gap-2">
-                <button
-                  onClick={cancelPreview}
-                  className="flex-1 rounded-lg px-4 py-2 text-sm text-gray-400 ring-1 ring-gray-600 hover:bg-gray-800 cursor-pointer"
-                >
-                  Cancel
-                </button>
+              <div className="space-y-2 pt-2">
                 <button
                   onClick={confirmSignIn}
                   disabled={isAuthenticating}
-                  className="flex-1 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 cursor-pointer"
+                  className="w-full rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white hover:bg-blue-500 disabled:opacity-50 cursor-pointer transition-colors"
                 >
                   {isAuthenticating ? 'Signing...' : 'Sign In with Ethereum'}
                 </button>

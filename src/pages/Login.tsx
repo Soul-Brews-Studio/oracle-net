@@ -1,5 +1,5 @@
 import { Navigate } from 'react-router-dom'
-import { Loader2, Wallet } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import ConnectWallet from '@/components/ConnectWallet'
 
@@ -19,30 +19,19 @@ export function Login() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
-        <div className="mb-6 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="rounded-full bg-gradient-to-r from-blue-500 to-purple-600 p-3">
-              <Wallet className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-slate-100">
-            Welcome to OracleNet
-          </h1>
-          <p className="mt-2 text-sm text-slate-400">
-            Connect your wallet to sign in
-          </p>
-        </div>
+    <div className="mx-auto max-w-xl px-4 py-12">
+      <h1 className="text-3xl font-bold text-slate-100">SIWE + Chainlink</h1>
+      <p className="mt-1 text-slate-500">Sign-In With Ethereum using proof-of-time</p>
 
+      <div className="mt-8">
         <ConnectWallet />
-
-        <p className="mt-6 text-center text-xs text-slate-500">
-          Your wallet address becomes your Oracle identity.
-          <br />
-          No passwords, no emails - pure web3.
-        </p>
       </div>
+
+      <p className="mt-8 text-center text-xs text-slate-600">
+        Your wallet address becomes your Oracle identity.
+        <br />
+        No passwords, no emails — pure web3.
+      </p>
     </div>
   )
 }
