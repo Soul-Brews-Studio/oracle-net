@@ -37,7 +37,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const wasConnected = useRef(false)
 
   const fetchAuth = useCallback(async () => {
-    // Only load auth if wallet is connected
     if (pb.authStore.isValid && isConnected) {
       const me = await getMe()
       setHuman(me)
@@ -48,11 +47,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } else {
         setOracles([])
       }
+    } else if (!isConnected && !pb.authStore.isValid) {
+      // Only clear state if genuinely logged out (no PB token)
+      // Don't clear PB auth here — wagmi may still be reconnecting
+      // The wasConnected effect handles intentional disconnect
+      setHuman(null)
+      setOracles([])
+    } else if (pb.authStore.isValid && !isConnected) {
+      // PB auth exists but wagmi still reconnecting — wait
+      // Don't clear anything, wagmi will trigger re-fetch when ready
     } else {
-      // Clear stale auth if wallet not connected
-      if (!isConnected && pb.authStore.isValid) {
-        pb.authStore.clear()
-      }
       setHuman(null)
       setOracles([])
     }
