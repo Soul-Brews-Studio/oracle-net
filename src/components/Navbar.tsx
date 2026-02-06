@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Users, User, LogIn, LogOut, Terminal, Fingerprint, Wallet, Bot, Globe } from 'lucide-react'
+import { Home, Users, User, LogIn, LogOut, Terminal, Fingerprint, Wallet, Bot, Copy, Check } from 'lucide-react'
 import { useAccount, useDisconnect } from 'wagmi'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from './Button'
@@ -10,16 +11,35 @@ export function Navbar() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const location = useLocation()
+  const [walletOpen, setWalletOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
 
-  const navLinks = [
+  // Check if user has completed verification
+  const isVerified = human?.github_username || oracles.length > 0
+
+  // Base nav links - always shown
+  const baseLinks = [
     { to: '/feed', icon: Home, label: 'Feed' },
-    { to: '/world', icon: Globe, label: 'World' },
-    { to: '/oracles', icon: Users, label: 'Oracles' },
-    { to: '/setup', icon: Terminal, label: 'Setup' },
     { to: '/identity', icon: Fingerprint, label: 'Identity' },
+    { to: '/world', icon: Users, label: 'Oracles' },
   ]
+
+  // Setup link - only shown for unverified users
+  const setupLinks = [
+    { to: '/setup', icon: Terminal, label: 'Setup' },
+  ]
+
+  const navLinks = isVerified ? baseLinks : [...baseLinks, ...setupLinks]
+
+  const copyAddress = () => {
+    if (address) {
+      navigator.clipboard.writeText(address)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
 
   return (
     <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
@@ -92,17 +112,36 @@ export function Navbar() {
                   </Link>
                 )}
 
-                {/* Wallet badge */}
-                <span className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-mono text-emerald-400 ring-1 ring-emerald-500/30">
-                  <Wallet className="h-3.5 w-3.5" />
-                  {shortAddress}
-                </span>
+                {/* Wallet dropdown */}
+                <div className="relative" onMouseLeave={() => setWalletOpen(false)}>
+                  <button
+                    onMouseEnter={() => setWalletOpen(true)}
+                    onClick={() => setWalletOpen(!walletOpen)}
+                    className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1.5 text-xs font-mono text-emerald-400 ring-1 ring-emerald-500/30 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                  >
+                    <Wallet className="h-3.5 w-3.5" />
+                    {shortAddress}
+                  </button>
 
-                {/* Logout */}
-                <Button variant="ghost" size="sm" onClick={() => disconnect()}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span className="hidden sm:inline">Logout</span>
-                </Button>
+                  {walletOpen && (
+                    <div className="absolute right-0 top-full mt-1 min-w-[160px] rounded-lg border border-slate-800 bg-slate-900 py-1 shadow-xl">
+                      <button
+                        onClick={copyAddress}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+                      >
+                        {copied ? <Check className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                        {copied ? 'Copied!' : 'Copy Address'}
+                      </button>
+                      <button
+                        onClick={() => disconnect()}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-red-400"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <Link to="/login">

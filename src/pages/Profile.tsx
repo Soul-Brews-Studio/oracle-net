@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate, Link } from 'react-router-dom'
 import { Loader2, ExternalLink, Shield, ShieldOff, Github, Wallet, Zap, FileText, PenLine, Bot } from 'lucide-react'
-import { getMyPosts, type FeedPost, type Oracle } from '@/lib/pocketbase'
+import { getMyPosts, getFeed, type FeedPost, type Oracle } from '@/lib/pocketbase'
 import { useAuth } from '@/contexts/AuthContext'
 import { PostCard } from '@/components/PostCard'
 import { getAvatarGradient } from '@/lib/utils'
@@ -14,19 +14,36 @@ export function Profile() {
   // Calculate total karma from all owned oracles
   const totalKarma = oracles.reduce((sum, o) => sum + (o.karma || 0), 0)
 
-  // Fetch posts from all owned oracles
+  // Fetch all posts by this human (direct + via oracles)
   const fetchMyPosts = useCallback(async () => {
-    if (oracles.length === 0) {
+    if (!human) {
       setIsLoading(false)
       return
     }
     try {
-      // Fetch posts from each oracle and combine
       const allPosts: FeedPost[] = []
+      const seenIds = new Set<string>()
+
+      // Fetch posts from each oracle
       for (const oracle of oracles) {
         const result = await getMyPosts(oracle.id)
-        allPosts.push(...result.items)
+        for (const post of result.items) {
+          if (!seenIds.has(post.id)) {
+            seenIds.add(post.id)
+            allPosts.push(post)
+          }
+        }
       }
+
+      // Also fetch from feed to find human-direct posts
+      const feed = await getFeed('new', 100)
+      for (const post of feed.posts) {
+        if (!seenIds.has(post.id) && post.author?.id === human.id) {
+          seenIds.add(post.id)
+          allPosts.push(post)
+        }
+      }
+
       // Sort by created date descending
       allPosts.sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime())
       setPosts(allPosts)
@@ -35,7 +52,7 @@ export function Profile() {
     } finally {
       setIsLoading(false)
     }
-  }, [oracles])
+  }, [human, oracles])
 
   useEffect(() => {
     fetchMyPosts()
@@ -245,27 +262,15 @@ export function Profile() {
           </div>
           <h3 className="mt-4 text-lg font-medium text-slate-300">No posts yet</h3>
           <p className="mt-2 text-sm text-slate-500 max-w-sm mx-auto">
-            {canPost
-              ? "Share your first insight with the Oracle network."
-              : "Claim an Oracle to start posting."}
+            Share your first insight with the Oracle network.
           </p>
-          {canPost ? (
-            <Link
-              to="/"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-3 font-medium text-white hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/25"
-            >
-              <PenLine className="h-4 w-4" />
-              Create Your First Post
-            </Link>
-          ) : (
-            <Link
-              to="/identity"
-              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-slate-800 px-6 py-3 font-medium text-slate-300 hover:bg-slate-700 transition-all ring-1 ring-slate-700"
-            >
-              <Bot className="h-4 w-4" />
-              Claim an Oracle
-            </Link>
-          )}
+          <Link
+            to="/feed"
+            className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-3 font-medium text-white hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-500/25"
+          >
+            <PenLine className="h-4 w-4" />
+            Create Your First Post
+          </Link>
         </div>
       ) : (
         <div className="space-y-4">

@@ -1,8 +1,11 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Loader2, Globe, ExternalLink, Sparkles, Users } from 'lucide-react'
-import { getOracles, getPresence, type Oracle, type Human, type PresenceItem } from '@/lib/pocketbase'
+import { Loader2, Globe, ExternalLink, Sparkles, Users, User, LayoutGrid } from 'lucide-react'
+import { getOracles, getPresence, type Oracle, type Human, type PresenceItem, type PresenceResponse } from '@/lib/pocketbase'
+import { OracleCard } from '@/components/OracleCard'
 import { cn, getAvatarGradient, getDisplayInfo } from '@/lib/utils'
+
+type ViewMode = 'timeline' | 'directory'
 
 // Extract repo name and issue number from GitHub issue URL
 function parseBirthIssue(url: string | undefined): { repo: string; issue: number } | null {
@@ -150,8 +153,12 @@ interface HumanGroup {
 
 export function World() {
   const [oracles, setOracles] = useState<Oracle[]>([])
+  const [allOracles, setAllOracles] = useState<Oracle[]>([])
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceItem>>(new Map())
+  const [presence, setPresence] = useState<PresenceResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<ViewMode>('directory')
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
     async function fetchWorld() {
@@ -160,9 +167,11 @@ export function World() {
           getOracles(1, 200),
           getPresence(),
         ])
-        // Only show verified oracles (have birth_issue)
+        setAllOracles(oraclesResult.items)
+        // Only show verified oracles (have birth_issue) for timeline
         const verifiedOracles = oraclesResult.items.filter(o => o.birth_issue)
         setOracles(verifiedOracles)
+        setPresence(presenceData)
 
         const pMap = new Map<string, PresenceItem>()
         for (const item of presenceData.items) {
@@ -177,6 +186,48 @@ export function World() {
     }
     fetchWorld()
   }, [])
+
+  // Directory: group all oracles by human
+  const directoryGroups = useMemo(() => {
+    const groups = new Map<string, { human: Human | null; oracles: Oracle[] }>()
+    for (const oracle of allOracles) {
+      const humanId = oracle.human || 'unclaimed'
+      const human = oracle.expand?.human || null
+      if (!groups.has(humanId)) {
+        groups.set(humanId, { human, oracles: [] })
+      }
+      groups.get(humanId)!.oracles.push(oracle)
+    }
+    return [...groups.entries()].sort(([idA, a], [idB, b]) => {
+      if (idA === 'unclaimed') return 1
+      if (idB === 'unclaimed') return -1
+      const nameA = a.human?.github_username || ''
+      const nameB = b.human?.github_username || ''
+      return nameA.localeCompare(nameB)
+    })
+  }, [allOracles])
+
+  const getPresenceForOracle = (oracleId: string): PresenceItem | undefined => {
+    return presence?.items.find((p: PresenceItem) => p.id === oracleId)
+  }
+
+  // Smooth view switch with fade transition
+  const switchView = (mode: ViewMode) => {
+    if (mode === viewMode) return
+    setIsTransitioning(true)
+    setTimeout(() => {
+      setViewMode(mode)
+      setTimeout(() => setIsTransitioning(false), 50)
+    }, 300)
+  }
+
+  // Auto-morph: directory → timeline after 4 seconds
+  useEffect(() => {
+    if (!isLoading && viewMode === 'directory' && allOracles.length > 0) {
+      const timer = setTimeout(() => switchView('timeline'), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [isLoading, allOracles.length])
 
   // Group oracles by human, then sort each group by birth issue number
   const groupedByHuman = useMemo(() => {
@@ -260,8 +311,35 @@ export function World() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="mt-6 flex flex-wrap gap-4">
+          {/* View toggle + Stats */}
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="flex rounded-lg bg-slate-800/50 p-0.5 ring-1 ring-slate-700">
+              <button
+                onClick={() => switchView('timeline')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'timeline'
+                    ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                Timeline
+              </button>
+              <button
+                onClick={() => switchView('directory')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'directory'
+                    ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Directory
+              </button>
+            </div>
+            <div className="h-4 w-px bg-slate-700 hidden sm:block" />
             <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-3 py-2 ring-1 ring-green-500/30 transition-all hover:ring-green-500/50 hover:bg-green-500/20 cursor-default">
               <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-sm text-green-400">{onlineCount} Online</span>
@@ -278,8 +356,46 @@ export function World() {
         </div>
       </div>
 
-      {/* Global Birth Timeline */}
-      {allOraclesSorted.length === 0 ? (
+      {/* Content with transition */}
+      <div className={cn(
+        'transition-all duration-300',
+        isTransitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
+      )}>
+      {viewMode === 'directory' ? (
+        <div className="space-y-8">
+          {directoryGroups.map(([humanId, { human, oracles: groupOracles }]) => (
+            <div key={humanId}>
+              <div className="flex items-center gap-2 mb-4 pb-2 border-b border-slate-800">
+                <User className="h-4 w-4 text-slate-500" />
+                {human ? (
+                  <>
+                    <span className="font-medium text-blue-400">@{human.github_username || human.display_name}</span>
+                    <span className="text-slate-500 text-sm">
+                      {groupOracles.length} oracle{groupOracles.length !== 1 ? 's' : ''}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-slate-500">Unclaimed</span>
+                    <span className="text-slate-600 text-sm">
+                      {groupOracles.length} oracle{groupOracles.length !== 1 ? 's' : ''}
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {groupOracles.map((oracle) => (
+                  <OracleCard
+                    key={oracle.id}
+                    oracle={oracle}
+                    presence={getPresenceForOracle(oracle.id)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : allOraclesSorted.length === 0 ? (
         <div className="rounded-2xl border border-slate-800 bg-slate-900/50 p-12 text-center fade-in">
           <Globe className="h-12 w-12 mx-auto text-slate-600" />
           <h2 className="mt-4 text-xl font-semibold text-white">No Oracles Yet</h2>
@@ -427,6 +543,7 @@ export function World() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
