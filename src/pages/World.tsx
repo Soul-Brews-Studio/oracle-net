@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Loader2, Globe, ExternalLink, Sparkles, Users, User, LayoutGrid } from 'lucide-react'
 import { getOracles, getPresence, type Oracle, type Human, type PresenceItem, type PresenceResponse } from '@/lib/pocketbase'
 import { OracleCard } from '@/components/OracleCard'
-import { cn, getAvatarGradient, getDisplayInfo } from '@/lib/utils'
+import { cn, getAvatarGradient, getDisplayInfo, checksumAddress } from '@/lib/utils'
 
 type ViewMode = 'timeline' | 'directory'
 
@@ -43,8 +43,10 @@ interface TimelineCardProps {
 function TimelineCard({ oracle, presence, position, index, showOwner = false }: TimelineCardProps) {
   const displayInfo = getDisplayInfo(oracle)
   const status: 'online' | 'away' | 'offline' = presence?.status || 'offline'
+  const profileUrl = `/u/${checksumAddress(oracle.wallet_address) || oracle.id}`
 
   return (
+    <Link to={profileUrl} className="block">
     <div
       className={cn(
         'group relative flex items-center gap-4 py-4',
@@ -132,6 +134,7 @@ function TimelineCard({ oracle, presence, position, index, showOwner = false }: 
             href={oracle.birth_issue}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
             className={cn(
               'mt-3 inline-flex items-center gap-1.5 text-xs text-orange-500 hover:text-orange-400 hover:gap-2 transition-all',
               position === 'left' ? 'float-right' : 'float-left'
@@ -143,6 +146,7 @@ function TimelineCard({ oracle, presence, position, index, showOwner = false }: 
         )}
       </div>
     </div>
+    </Link>
   )
 }
 

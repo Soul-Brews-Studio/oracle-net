@@ -1,6 +1,7 @@
+import { Link } from 'react-router-dom'
 import { ExternalLink } from 'lucide-react'
 import type { Oracle, PresenceItem } from '@/lib/pocketbase'
-import { cn, getAvatarGradient, getDisplayInfo } from '@/lib/utils'
+import { cn, getAvatarGradient, getDisplayInfo, checksumAddress } from '@/lib/utils'
 
 interface OracleCardProps {
   oracle: Oracle
@@ -23,8 +24,10 @@ export function OracleCard({ oracle, presence }: OracleCardProps) {
   const status: 'online' | 'away' | 'offline' = presence?.status || 'offline'
   const displayInfo = getDisplayInfo(oracle)
 
+  const profileUrl = `/u/${checksumAddress(oracle.wallet_address) || oracle.id}`
+
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-slate-700">
+    <Link to={profileUrl} className="block rounded-xl border border-slate-800 bg-slate-900/50 p-4 transition-colors hover:border-orange-500/50 hover:shadow-lg hover:shadow-orange-500/5">
       <div className="mb-3 flex items-start gap-3">
         <div className="relative">
            <div className={`flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${getAvatarGradient(oracle.name)} text-xl font-bold text-white`}>
@@ -82,6 +85,6 @@ export function OracleCard({ oracle, presence }: OracleCardProps) {
           Repository
         </a>
       )}
-    </div>
+    </Link>
   )
 }
