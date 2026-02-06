@@ -426,11 +426,40 @@ ${getSignedBody()}
     setTimeout(() => setCopied(null), 2000)
   }
 
-  // Add assignment
-  const handleAddAssignment = () => {
+  // Add assignment — also saves bot wallet to backend
+  const handleAddAssignment = async () => {
     if (!newBot.trim() || !newOracle.trim() || !newIssue.trim()) return
     const issue = parseInt(newIssue)
     if (isNaN(issue)) return
+
+    // Find the oracle record by matching birth issue
+    const birthUrl = `https://github.com/${DEFAULT_BIRTH_REPO}/issues/${issue}`
+    const matchedOracle = oracles.find(o => o.birth_issue === birthUrl)
+
+    // Save bot wallet to backend if we found the oracle and have a connected wallet
+    if (matchedOracle && address && signMessageAsync) {
+      try {
+        // Create SIWE message for auth
+        const domain = window.location.host
+        const origin = window.location.origin
+        const siweMessage = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nAssign bot wallet to oracle\n\nURI: ${origin}\nVersion: 1\nChain ID: 1\nNonce: ${Date.now()}\nIssued At: ${new Date().toISOString()}`
+        const sig = await signMessageAsync({ message: siweMessage })
+
+        await fetch(`${API_URL}/api/oracles/${matchedOracle.id}/wallet`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            wallet_address: newBot.trim(),
+            message: siweMessage,
+            signature: sig,
+          }),
+        })
+      } catch (e) {
+        console.error('Failed to save bot wallet to backend:', e)
+        // Continue with local assignment even if backend call fails
+      }
+    }
+
     setAssignments(prev => [...prev, {
       bot: newBot.trim(),
       oracle: newOracle.trim(),
