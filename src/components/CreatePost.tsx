@@ -1,9 +1,19 @@
 import { useState } from 'react'
-import { Send } from 'lucide-react'
-import { createPost } from '@/lib/pocketbase'
+import { Send, ShieldCheck } from 'lucide-react'
+import { useSignMessage, useAccount, useChainId } from 'wagmi'
+import { API_URL } from '@/lib/pocketbase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from './Button'
 import { getAvatarGradient } from '@/lib/utils'
+
+function buildSiweMessage(opts: {
+  domain: string; address: string; statement: string;
+  uri: string; version: string; chainId: number;
+  nonce: string; issuedAt?: string;
+}): string {
+  const issuedAt = opts.issuedAt || new Date().toISOString()
+  return `${opts.domain} wants you to sign in with your Ethereum account:\n${opts.address}\n\n${opts.statement}\n\nURI: ${opts.uri}\nVersion: ${opts.version}\nChain ID: ${opts.chainId}\nNonce: ${opts.nonce}\nIssued At: ${issuedAt}`
+}
 
 interface CreatePostProps {
   onPostCreated?: () => void
@@ -13,6 +23,9 @@ type AuthorOption = { type: 'human'; id: string; name: string } | { type: 'oracl
 
 export function CreatePost({ onPostCreated }: CreatePostProps) {
   const { human, oracles } = useAuth()
+  const { address } = useAccount()
+  const chainId = useChainId()
+  const { signMessageAsync } = useSignMessage()
   const [title, setTitle] = useState('')
   const [content, setContent] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -43,19 +56,58 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!title.trim() || !content.trim() || !selectedAuthor) return
+    if (!title.trim() || !content.trim() || !selectedAuthor || !address) return
 
     setIsSubmitting(true)
     setError('')
 
     try {
-      // Human posts: pass humanId only
-      // Oracle posts: pass humanId + oracleId
-      if (selectedAuthor.type === 'human') {
-        await createPost(title.trim(), content.trim(), selectedAuthor.id)
-      } else {
-        await createPost(title.trim(), content.trim(), human!.id, selectedAuthor.id)
+      // 1. Get Chainlink nonce
+      const nonceRes = await fetch(`${API_URL}/api/auth/chainlink`)
+      if (!nonceRes.ok) throw new Error('Failed to get nonce')
+      const nonceData = await nonceRes.json()
+      if (!nonceData.roundId) throw new Error('Failed to get roundId')
+
+      // 2. Build SIWE message
+      const siweMessage = buildSiweMessage({
+        domain: window.location.host,
+        address,
+        statement: `Post to Oracle Net: ${title.trim().slice(0, 60)}`,
+        uri: window.location.origin,
+        version: '1',
+        chainId: chainId || 1,
+        nonce: nonceData.roundId,
+      })
+
+      // 3. Sign with wallet (MetaMask popup)
+      const signature = await signMessageAsync({ message: siweMessage })
+
+      // 4. Submit with SIWE auth in body
+      const postData: Record<string, string> = {
+        title: title.trim(),
+        content: content.trim(),
+        message: siweMessage,
+        signature,
       }
+
+      if (selectedAuthor.type === 'human') {
+        postData.author = selectedAuthor.id
+      } else {
+        postData.author = human!.id
+        postData.oracle = selectedAuthor.id
+      }
+
+      const res = await fetch(`${API_URL}/api/posts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(postData),
+      })
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Failed to create post' }))
+        throw new Error(err.error || 'Failed to create post')
+      }
+
       setTitle('')
       setContent('')
       onPostCreated?.()
@@ -135,8 +187,11 @@ export function CreatePost({ onPostCreated }: CreatePostProps) {
           type="submit"
           disabled={isSubmitting || !title.trim() || !content.trim()}
         >
-          <Send className="mr-2 h-4 w-4" />
-          {isSubmitting ? 'Posting...' : 'Post'}
+          {isSubmitting ? (
+            <><ShieldCheck className="mr-2 h-4 w-4 animate-pulse" /> Signing...</>
+          ) : (
+            <><Send className="mr-2 h-4 w-4" /> Sign & Post</>
+          )}
         </Button>
       </div>
     </form>

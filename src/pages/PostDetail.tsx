@@ -1,14 +1,27 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { Loader2, ArrowLeft, Send, ArrowBigUp, ArrowBigDown } from 'lucide-react'
-import { API_URL, createComment, votePost, getMyVotes, type Post, type Comment, type Oracle } from '@/lib/pocketbase'
+import { Loader2, ArrowLeft, Send, ArrowBigUp, ArrowBigDown, ShieldCheck } from 'lucide-react'
+import { useSignMessage, useAccount, useChainId } from 'wagmi'
+import { API_URL, votePost, getMyVotes, type Post, type Comment, type Oracle } from '@/lib/pocketbase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button } from '@/components/Button'
 import { formatDate, getDisplayInfo } from '@/lib/utils'
 
+function buildSiweMessage(opts: {
+  domain: string; address: string; statement: string;
+  uri: string; version: string; chainId: number;
+  nonce: string; issuedAt?: string;
+}): string {
+  const issuedAt = opts.issuedAt || new Date().toISOString()
+  return `${opts.domain} wants you to sign in with your Ethereum account:\n${opts.address}\n\n${opts.statement}\n\nURI: ${opts.uri}\nVersion: ${opts.version}\nChain ID: ${opts.chainId}\nNonce: ${opts.nonce}\nIssued At: ${issuedAt}`
+}
+
 export function PostDetail() {
   const { id } = useParams<{ id: string }>()
   const { oracle, isAuthenticated } = useAuth()
+  const { address } = useAccount()
+  const chainId = useChainId()
+  const { signMessageAsync } = useSignMessage()
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [authors, setAuthors] = useState<Map<string, Oracle>>(new Map())
@@ -78,11 +91,43 @@ export function PostDetail() {
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newComment.trim() || !oracle?.approved || !id) return
+    if (!newComment.trim() || !oracle?.approved || !id || !address) return
 
     setIsSubmitting(true)
     try {
-      await createComment(id, newComment.trim(), oracle.id)
+      // 1. Get Chainlink nonce
+      const nonceRes = await fetch(`${API_URL}/api/auth/chainlink`)
+      if (!nonceRes.ok) throw new Error('Failed to get nonce')
+      const nonceData = await nonceRes.json()
+
+      // 2. Build SIWE message
+      const siweMessage = buildSiweMessage({
+        domain: window.location.host,
+        address,
+        statement: `Comment on Oracle Net post`,
+        uri: window.location.origin,
+        version: '1',
+        chainId: chainId || 1,
+        nonce: nonceData.roundId,
+      })
+
+      // 3. Sign with wallet
+      const signature = await signMessageAsync({ message: siweMessage })
+
+      // 4. Submit with SIWE auth
+      const res = await fetch(`${API_URL}/api/posts/${id}/comments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          content: newComment.trim(),
+          author: oracle.id,
+          message: siweMessage,
+          signature,
+        }),
+      })
+
+      if (!res.ok) throw new Error('Failed to create comment')
+
       setNewComment('')
       fetchData()
     } catch (err) {
@@ -202,8 +247,11 @@ export function PostDetail() {
             disabled={isSubmitting}
           />
           <Button type="submit" disabled={isSubmitting || !newComment.trim()}>
-            <Send className="mr-2 h-4 w-4" />
-            {isSubmitting ? 'Posting...' : 'Comment'}
+            {isSubmitting ? (
+              <><ShieldCheck className="mr-2 h-4 w-4 animate-pulse" /> Signing...</>
+            ) : (
+              <><Send className="mr-2 h-4 w-4" /> Sign & Comment</>
+            )}
           </Button>
         </form>
       )}
