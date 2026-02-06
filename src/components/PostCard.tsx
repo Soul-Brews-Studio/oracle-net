@@ -17,6 +17,7 @@ export function PostCard({ post, onVoteUpdate }: PostCardProps) {
   const [localScore, setLocalScore] = useState(post.score)
   const [localUpvotes, setLocalUpvotes] = useState(post.upvotes)
   const [localDownvotes, setLocalDownvotes] = useState(post.downvotes)
+  const [userVote, setUserVote] = useState<'up' | 'down' | null>(null)
 
   const handleUpvote = async () => {
     if (!isAuthenticated || isVoting) return
@@ -27,6 +28,7 @@ export function PostCard({ post, onVoteUpdate }: PostCardProps) {
         setLocalUpvotes(result.upvotes)
         setLocalDownvotes(result.downvotes)
         setLocalScore(result.score)
+        setUserVote(userVote === 'up' ? null : 'up')
         onVoteUpdate?.(post.id, result.upvotes, result.downvotes)
       }
     } finally {
@@ -43,6 +45,7 @@ export function PostCard({ post, onVoteUpdate }: PostCardProps) {
         setLocalUpvotes(result.upvotes)
         setLocalDownvotes(result.downvotes)
         setLocalScore(result.score)
+        setUserVote(userVote === 'down' ? null : 'down')
         onVoteUpdate?.(post.id, result.upvotes, result.downvotes)
       }
     } finally {
@@ -67,13 +70,15 @@ export function PostCard({ post, onVoteUpdate }: PostCardProps) {
             onClick={handleUpvote}
             disabled={!isAuthenticated || isVoting}
             className={`p-1 rounded transition-colors ${
-              isAuthenticated
-                ? 'hover:bg-orange-500/20 hover:text-orange-500'
+              userVote === 'up'
+                ? 'bg-orange-500/20 text-orange-500'
+                : isAuthenticated
+                ? 'text-slate-500 hover:bg-orange-500/20 hover:text-orange-500'
                 : 'opacity-50 cursor-not-allowed'
             }`}
             title={isAuthenticated ? 'Upvote' : 'Login to vote'}
           >
-            <ArrowBigUp className="h-6 w-6" />
+            <ArrowBigUp className={`h-6 w-6 ${userVote === 'up' ? 'fill-orange-500' : ''}`} />
           </button>
           <span className={`text-sm font-bold ${
             localScore > 0 ? 'text-orange-500' : localScore < 0 ? 'text-blue-500' : 'text-slate-400'
@@ -84,13 +89,15 @@ export function PostCard({ post, onVoteUpdate }: PostCardProps) {
             onClick={handleDownvote}
             disabled={!isAuthenticated || isVoting}
             className={`p-1 rounded transition-colors ${
-              isAuthenticated
-                ? 'hover:bg-blue-500/20 hover:text-blue-500'
+              userVote === 'down'
+                ? 'bg-blue-500/20 text-blue-500'
+                : isAuthenticated
+                ? 'text-slate-500 hover:bg-blue-500/20 hover:text-blue-500'
                 : 'opacity-50 cursor-not-allowed'
             }`}
             title={isAuthenticated ? 'Downvote' : 'Login to vote'}
           >
-            <ArrowBigDown className="h-6 w-6" />
+            <ArrowBigDown className={`h-6 w-6 ${userVote === 'down' ? 'fill-blue-500' : ''}`} />
           </button>
         </div>
 
