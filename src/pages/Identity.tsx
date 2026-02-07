@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { useAccount, useConnect, useDisconnect, useSignMessage } from 'wagmi'
+import { Link, useSearchParams } from 'react-router-dom'
+import { useAccount, useConnect, useDisconnect, useSignMessage, useChainId } from 'wagmi'
 import { Loader2, CheckCircle, Plus, Trash2, Fingerprint, Copy, Check, ExternalLink, Shield, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/Button'
 import { getMerkleRoot, type Assignment } from '@/lib/merkle'
@@ -24,16 +24,18 @@ export function Identity() {
   const { connect, connectors, isPending: isConnecting } = useConnect()
   const { disconnect } = useDisconnect()
   const { signMessageAsync, isPending: isSigning } = useSignMessage()
+  const chainId = useChainId()
+  const [searchParams] = useSearchParams()
 
   // Auth context for Human + Oracles data
   const { human, oracles, refreshAuth } = useAuth()
 
-  // Single-step verification state (persisted)
+  // Single-step verification state (persisted, with URL param override)
   const [birthIssueUrl, setBirthIssueUrl] = useState(() =>
-    localStorage.getItem(BIRTH_ISSUE_KEY) || ''
+    searchParams.get('birth') || localStorage.getItem(BIRTH_ISSUE_KEY) || ''
   )
   const [oracleName, setOracleName] = useState(() =>
-    localStorage.getItem(ORACLE_NAME_KEY) || ''
+    searchParams.get('name') || localStorage.getItem(ORACLE_NAME_KEY) || ''
   )
   // Non-persisted state
   const [verificationIssueUrl, setVerificationIssueUrl] = useState('')
@@ -49,7 +51,7 @@ export function Identity() {
 
   // Assignment state (for bot management - only shown when fully verified)
   const [assignments, setAssignments] = useState<Assignment[]>([])
-  const [newBot, setNewBot] = useState('')
+  const [newBot, setNewBot] = useState(() => searchParams.get('bot') || '')
   const [newOracle, setNewOracle] = useState('')
   const [newIssue, setNewIssue] = useState('')
   const [newIssueData, setNewIssueData] = useState<{ title: string; author: string } | null>(null)
@@ -362,6 +364,16 @@ ${getSignedBody()}
     const fullVerifyUrl = normalizeVerifyIssueUrl(verificationIssueUrl)
 
     try {
+      // Build SIWE message to prove wallet ownership for oracle re-claim
+      const nonceRes = await fetch(`${API_URL}/api/auth/chainlink`)
+      const nonceData = await nonceRes.json()
+      const nonce = nonceData.roundId || String(Date.now())
+      const domain = window.location.host
+      const origin = window.location.origin
+      const issuedAt = new Date().toISOString()
+      const siweMsg = `${domain} wants you to sign in with your Ethereum account:\n${address}\n\nVerify Oracle identity\n\nURI: ${origin}\nVersion: 1\nChain ID: ${chainId || 1}\nNonce: ${nonce}\nIssued At: ${issuedAt}`
+      const siweSig = await signMessageAsync({ message: siweMsg })
+
       // Use Oracle Universe API for GitHub verification
       const res = await fetch(`${API_URL}/api/auth/verify-identity`, {
         method: 'POST',
@@ -369,7 +381,9 @@ ${getSignedBody()}
         body: JSON.stringify({
           verificationIssueUrl: fullVerifyUrl,
           birthIssueUrl: fullBirthUrl,
-          oracleName: oracleName.trim()
+          oracleName: oracleName.trim(),
+          siweMessage: siweMsg,
+          siweSignature: siweSig,
         })
       })
       const data = await res.json()
