@@ -38,13 +38,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const token = getToken()
     if (token && isConnected) {
       const me = await getMe()
-      setHuman(me)
-      // Fetch oracles owned by this human
-      if (me?.wallet_address) {
-        const myOracles = await getMyOracles()
-        setOracles(myOracles)
-      } else {
+      if (!me) {
+        // Token is stale or invalid — clear it so SIWE can re-trigger
+        setToken(null)
+        setHuman(null)
         setOracles([])
+      } else {
+        setHuman(me)
+        // Fetch oracles owned by this human
+        if (me.wallet_address) {
+          const myOracles = await getMyOracles()
+          setOracles(myOracles)
+        } else {
+          setOracles([])
+        }
       }
     } else if (!isConnected && !token) {
       setHuman(null)
