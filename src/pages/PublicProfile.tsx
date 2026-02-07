@@ -273,7 +273,7 @@ function HumanProfile({ human, oracles, posts }: { human: { display_name?: strin
             {oracles.map((oracle) => (
               <Link
                 key={oracle.id}
-                to={`/u/${checksumAddress(oracle.bot_wallet) || oracle.id}`}
+                to={`/u/${checksumAddress(oracle.bot_wallet) || checksumAddress(oracle.owner_wallet) || oracle.id}`}
                 className="rounded-xl border border-slate-800 bg-slate-900/50 p-4 hover:border-purple-500/50 transition-colors group"
               >
                 <div className="flex items-center gap-4">

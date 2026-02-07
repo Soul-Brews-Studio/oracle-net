@@ -617,12 +617,19 @@ bun scripts/oraclenet.ts assign` : ''
 
         {/* Claim Context Banner — shown when URL params present and not yet verified */}
         {hasClaim && !isFullyVerified && !verifySuccess && (
-          <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3 flex items-center gap-3">
-            <Fingerprint className="h-4 w-4 text-orange-400 shrink-0" />
-            <span className="text-sm text-orange-300">
-              Claiming <span className="font-semibold">{claimName || 'Oracle'}</span>
-              {claimBirth && <span className="text-slate-500"> · oracle-v2#{claimBirth}</span>}
-            </span>
+          <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Fingerprint className="h-4 w-4 text-orange-400 shrink-0" />
+              <span className="text-sm text-orange-300">
+                Claiming <span className="font-semibold">{claimName || 'Oracle'}</span>
+                {claimBirth && <span className="text-slate-500"> · oracle-v2#{claimBirth}</span>}
+              </span>
+            </div>
+            {claimBot && (
+              <div className="mt-1.5 ml-7 text-xs text-slate-500 font-mono">
+                Bot Wallet: {claimBot}
+              </div>
+            )}
           </div>
         )}
 
@@ -653,7 +660,7 @@ bun scripts/oraclenet.ts assign` : ''
               {oracles.map(o => (
                 <Link
                   key={o.id}
-                  to={`/u/${checksumAddress(o.bot_wallet) || o.id}`}
+                  to={`/u/${checksumAddress(o.bot_wallet) || checksumAddress(o.owner_wallet) || o.id}`}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 transition-colors"
                 >
                   <span className="font-medium">{o.oracle_name || o.name}</span>

@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const me = await getMe()
       setHuman(me)
       // Fetch oracles owned by this human
-      if (me?.id) {
+      if (me?.wallet_address) {
         const myOracles = await getMyOracles()
         setOracles(myOracles)
       } else {

@@ -22,7 +22,7 @@ export function setToken(token: string | null) {
 export interface Human {
   id: string
   display_name?: string
-  wallet_address?: string
+  wallet_address: string        // Wallet IS the identity
   github_username?: string
   verified_at?: string
   created: string
@@ -155,6 +155,8 @@ export async function getOracles(page = 1, perPage = 100): Promise<ListResult<Or
   }
   const data = await response.json()
   for (const oracle of data.items || []) {
+    // Cache by bot_wallet (primary identity) and id (for internal lookups)
+    if (oracle.bot_wallet) oraclesCache.set(oracle.bot_wallet.toLowerCase(), oracle)
     oraclesCache.set(oracle.id, oracle)
   }
   return { page, perPage, totalItems: data.totalItems || data.count || 0, totalPages: 1, items: data.items || [] }

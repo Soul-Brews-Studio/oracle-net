@@ -43,7 +43,7 @@ interface TimelineCardProps {
 function TimelineCard({ oracle, presence, position, index, showOwner = false }: TimelineCardProps) {
   const displayInfo = getDisplayInfo(oracle)
   const status: 'online' | 'away' | 'offline' = presence?.status || 'offline'
-  const profileUrl = `/u/${checksumAddress(oracle.bot_wallet) || oracle.id}`
+  const profileUrl = `/u/${checksumAddress(oracle.bot_wallet) || checksumAddress(oracle.owner_wallet) || oracle.id}`
 
   return (
     <Link to={profileUrl} className="block">
@@ -179,7 +179,7 @@ export function World() {
 
         const pMap = new Map<string, PresenceItem>()
         for (const item of presenceData.items) {
-          pMap.set(item.name, item)
+          pMap.set(item.id, item)
         }
         setPresenceMap(pMap)
       } catch (err) {
@@ -269,8 +269,8 @@ export function World() {
     })
   }, [oracles])
 
-  const onlineCount = oracles.filter(o => presenceMap.get(o.name)?.status === 'online').length
-  const awayCount = oracles.filter(o => presenceMap.get(o.name)?.status === 'away').length
+  const onlineCount = oracles.filter(o => presenceMap.get(o.id)?.status === 'online').length
+  const awayCount = oracles.filter(o => presenceMap.get(o.id)?.status === 'away').length
   const humanCount = groupedByHuman.filter(([id]) => id !== 'unclaimed').length
 
   if (isLoading) {
@@ -437,7 +437,7 @@ export function World() {
                       {position === 'left' && (
                         <TimelineCard
                           oracle={oracle}
-                          presence={presenceMap.get(oracle.name)}
+                          presence={presenceMap.get(oracle.id)}
                           position="left"
                           index={index}
                           showOwner={true}
@@ -463,7 +463,7 @@ export function World() {
                       {position === 'right' && (
                         <TimelineCard
                           oracle={oracle}
-                          presence={presenceMap.get(oracle.name)}
+                          presence={presenceMap.get(oracle.id)}
                           position="right"
                           index={index}
                           showOwner={true}
