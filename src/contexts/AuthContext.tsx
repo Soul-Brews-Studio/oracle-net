@@ -2,6 +2,18 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import { useAccount } from 'wagmi'
 import { API_URL, getMe, getMyOracles, getToken, setToken, type Human, type Oracle } from '@/lib/pocketbase'
 
+// Decode JWT payload without validation (we just need the `sub` claim)
+function decodeJwtSub(token: string): string | null {
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return null
+    const decoded = JSON.parse(atob(payload))
+    return decoded.sub || null
+  } catch {
+    return null
+  }
+}
+
 interface AuthContextType {
   human: Human | null
   oracles: Oracle[]
@@ -31,12 +43,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [human, setHuman] = useState<Human | null>(null)
   const [oracles, setOracles] = useState<Oracle[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const { isConnected } = useAccount()
+  const { address, isConnected } = useAccount()
   const wasConnected = useRef(false)
 
   const fetchAuth = useCallback(async () => {
     const token = getToken()
     if (token && isConnected) {
+      // Wallet-aware JWT check: if token's sub doesn't match connected wallet, clear it
+      if (address) {
+        const tokenSub = decodeJwtSub(token)
+        if (tokenSub && tokenSub.toLowerCase() !== address.toLowerCase()) {
+          setToken(null)
+          setHuman(null)
+          setOracles([])
+          setIsLoading(false)
+          return
+        }
+      }
+
       const me = await getMe()
       if (!me) {
         // Token is stale or invalid — clear it so SIWE can re-trigger
@@ -63,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOracles([])
     }
     setIsLoading(false)
-  }, [isConnected])
+  }, [isConnected, address])
 
   // Clear auth when wallet disconnects
   useEffect(() => {

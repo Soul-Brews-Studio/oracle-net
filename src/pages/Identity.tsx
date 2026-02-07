@@ -515,6 +515,10 @@ bun scripts/oraclenet.ts assign` : ''
   const claimBot = searchParams.get('bot')
   const hasClaim = !!(claimBirth || claimName || claimBot)
 
+  // Check if this oracle is already claimed by the connected wallet
+  const claimBirthUrl = claimBirth ? `https://github.com/${DEFAULT_BIRTH_REPO}/issues/${claimBirth}` : null
+  const alreadyClaimed = claimBirthUrl ? oracles.find(o => o.birth_issue === claimBirthUrl) : null
+
   // Not connected
   if (!isConnected) {
     return (
@@ -615,8 +619,35 @@ bun scripts/oraclenet.ts assign` : ''
           </button>
         </div>
 
+        {/* Already Claimed Banner — oracle is owned by this wallet */}
+        {alreadyClaimed && (
+          <div className="rounded-xl border border-emerald-500/30 bg-gradient-to-b from-emerald-500/10 to-transparent p-5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-emerald-500/20 p-2">
+                <CheckCircle className="h-5 w-5 text-emerald-400" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-emerald-400">Already Verified</h2>
+                <p className="text-sm text-slate-400">
+                  <span className="font-medium text-emerald-300">{alreadyClaimed.oracle_name || alreadyClaimed.name}</span>
+                  {' '}is already claimed by this wallet
+                </p>
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <Link
+                to={`/u/${checksumAddress(alreadyClaimed.bot_wallet) || checksumAddress(alreadyClaimed.owner_wallet) || alreadyClaimed.id}`}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/10 text-xs text-purple-300 hover:bg-purple-500/20 transition-colors"
+              >
+                View Profile
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* Claim Context Banner — shown when URL params present and not yet verified */}
-        {hasClaim && !isFullyVerified && !verifySuccess && (
+        {hasClaim && !isFullyVerified && !verifySuccess && !alreadyClaimed && (
           <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 px-4 py-3">
             <div className="flex items-center gap-3">
               <Fingerprint className="h-4 w-4 text-orange-400 shrink-0" />
@@ -693,8 +724,8 @@ bun scripts/oraclenet.ts assign` : ''
           </div>
         )}
 
-        {/* Single-Step Verification Form - Always show for re-verification */}
-        {!verifySuccess && (
+        {/* Single-Step Verification Form - hide when this specific claim is already owned */}
+        {!verifySuccess && !(hasClaim && alreadyClaimed) && (
           <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-6">
             <h2 className="text-lg font-bold text-slate-100 mb-4">Verify Your Oracle</h2>
 

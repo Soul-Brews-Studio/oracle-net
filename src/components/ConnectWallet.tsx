@@ -7,6 +7,20 @@ import { useAuth } from '../contexts/AuthContext'
 import { API_URL } from '../lib/wagmi'
 import { setToken, getToken } from '../lib/pocketbase'
 
+// Check if stored token belongs to the given wallet address
+function isTokenForWallet(address: string): boolean {
+  const token = getToken()
+  if (!token) return false
+  try {
+    const payload = token.split('.')[1]
+    if (!payload) return false
+    const decoded = JSON.parse(atob(payload))
+    return decoded.sub?.toLowerCase() === address.toLowerCase()
+  } catch {
+    return false
+  }
+}
+
 // Manual SIWE message builder (matches siwe-service/lib.ts)
 // viem's createSiweMessage doesn't allow \n in statement
 function buildSiweMessage(opts: {
@@ -54,7 +68,12 @@ export default function ConnectWallet() {
 
   useEffect(() => {
     // Only trigger on fresh connection (false → true)
-    if (isConnected && !wasConnected.current && address && !getToken()) {
+    // Also trigger if token exists but belongs to a different wallet
+    if (isConnected && !wasConnected.current && address && (!getToken() || !isTokenForWallet(address))) {
+      // Clear stale token if it's for a different wallet
+      if (getToken() && !isTokenForWallet(address)) {
+        setToken(null)
+      }
       // Auto-prepare SIWE message
       prepareSignIn()
     }
