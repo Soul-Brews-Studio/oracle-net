@@ -27,7 +27,7 @@ function useOracleStats() {
       try {
         const result = await getOracles(1, 100)
         const approvedOracles = result.items.filter(o => o.approved && o.birth_issue)
-        const uniqueOwners = new Set(approvedOracles.filter(o => o.owner_wallet).map(o => o.owner_wallet))
+        const uniqueOwners = new Set(approvedOracles.filter(o => o.owner_wallet).map(o => o.owner_github || o.owner_wallet))
 
         setStats({
           oracleCount: approvedOracles.length,

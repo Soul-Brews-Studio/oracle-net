@@ -181,7 +181,7 @@ export function World() {
   const [presenceMap, setPresenceMap] = useState<Map<string, PresenceItem>>(new Map())
   const [presence, setPresence] = useState<PresenceResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [viewMode, setViewMode] = useState<ViewMode>('directory')
+  const [viewMode, setViewMode] = useState<ViewMode>(owner ? 'timeline' : 'directory')
   const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
@@ -358,11 +358,11 @@ export function World() {
         <div className="relative p-6 sm:p-8">
           {owner && (
             <Link
-              to="/profile"
+              to="/world"
               className="inline-flex items-center gap-1 text-sm text-slate-400 hover:text-white transition-colors mb-4 group"
             >
               <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
-              Back to Profile
+              All Oracles
             </Link>
           )}
 
@@ -386,37 +386,33 @@ export function World() {
 
           {/* View toggle + Stats */}
           <div className="mt-6 flex flex-wrap items-center gap-4">
-            {!owner && (
-              <>
-                <div className="flex rounded-lg bg-slate-800/50 p-0.5 ring-1 ring-slate-700">
-                  <button
-                    onClick={() => switchView('timeline')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-                      viewMode === 'timeline'
-                        ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    )}
-                  >
-                    <Globe className="h-3.5 w-3.5" />
-                    Timeline
-                  </button>
-                  <button
-                    onClick={() => switchView('directory')}
-                    className={cn(
-                      'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
-                      viewMode === 'directory'
-                        ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
-                        : 'text-slate-400 hover:text-slate-200'
-                    )}
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                    Directory
-                  </button>
-                </div>
-                <div className="h-4 w-px bg-slate-700 hidden sm:block" />
-              </>
-            )}
+            <div className="flex rounded-lg bg-slate-800/50 p-0.5 ring-1 ring-slate-700">
+              <button
+                onClick={() => switchView('timeline')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'timeline'
+                    ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+              >
+                <Globe className="h-3.5 w-3.5" />
+                Timeline
+              </button>
+              <button
+                onClick={() => switchView('directory')}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                  viewMode === 'directory'
+                    ? 'bg-orange-500/20 text-orange-400 ring-1 ring-orange-500/30'
+                    : 'text-slate-400 hover:text-slate-200'
+                )}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                Directory
+              </button>
+            </div>
+            <div className="h-4 w-px bg-slate-700 hidden sm:block" />
             <div className="flex items-center gap-2 rounded-lg bg-green-500/10 px-3 py-2 ring-1 ring-green-500/30 transition-all hover:ring-green-500/50 hover:bg-green-500/20 cursor-default">
               <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-sm text-green-400">{onlineCount} Online</span>
@@ -457,8 +453,8 @@ export function World() {
         'transition-all duration-300',
         isTransitioning ? 'opacity-0 translate-y-2' : 'opacity-100 translate-y-0'
       )}>
-      {!owner && viewMode === 'directory' ? (
-        /* Directory view (world mode only) */
+      {viewMode === 'directory' ? (
+        /* Directory view */
         <div className="space-y-8">
           {directoryGroups.map(([ownerKey, { github, oracles: groupOracles }]) => (
             <div key={ownerKey}>
