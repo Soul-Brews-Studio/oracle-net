@@ -175,10 +175,26 @@ export function Identity() {
     return `https://github.com/${DEFAULT_BIRTH_REPO}/issues/${input.trim()}`
   }
 
+  // Check on page load if oracle is already claimed (e.g. CLI claimed while browser was open)
+  const birthUrlForPoll = normalizeBirthIssueUrl(birthIssueUrl)
+  useEffect(() => {
+    if (verifySuccess || !birthUrlForPoll) return
+    getOracles(1, 200).then(result => {
+      const matched = result.items.find(o => o.birth_issue === birthUrlForPoll)
+      if (matched) {
+        setVerifySuccess({
+          oracle_name: matched.oracle_name || matched.name || oracleName,
+          github_username: human?.github_username || ''
+        })
+        const dest = matched.bot_wallet ? `/o/${matched.bot_wallet.toLowerCase()}` : '/team'
+        setTimeout(() => navigate(dest), 2000)
+      }
+    })
+  }, [birthUrlForPoll]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Poll for verification completion (bot may verify from CLI)
   // After user signs, poll oracle list every 3s to detect new oracle
   // Uses public API (no auth needed) so it works even when CLI did the verification
-  const birthUrlForPoll = normalizeBirthIssueUrl(birthIssueUrl)
   useEffect(() => {
     if (!signedData || verifySuccess) return
     const interval = setInterval(async () => {
