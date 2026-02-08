@@ -47,7 +47,7 @@ export function Oracles() {
     const groups = new Map<string, { human: Human | null; oracles: Oracle[] }>()
 
     for (const oracle of oracles) {
-      const ownerKey = oracle.owner_wallet || 'unclaimed'
+      const ownerKey = oracle.owner_github || oracle.owner_wallet || 'unclaimed'
 
       if (!groups.has(ownerKey)) {
         groups.set(ownerKey, { human: null, oracles: [] })

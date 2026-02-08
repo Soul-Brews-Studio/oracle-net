@@ -278,17 +278,29 @@ export function Identity() {
     return `https://github.com/${VERIFY_REPO}/issues/${input.trim()}`
   }
 
-  // Generate the verification message
-  const getVerifyMessage = () => {
+  // Generate the verification message (async — fetches Chainlink roundId for freshness)
+  const getVerifyMessage = async () => {
     if (!address || !birthIssueUrl || !oracleName) return ''
     const fullBirthUrl = normalizeBirthIssueUrl(birthIssueUrl)
+
+    // Fetch Chainlink roundId for proof-of-time freshness
+    let chainlinkRound: string | undefined
+    try {
+      const res = await fetch(`${API_URL}/api/auth/chainlink`)
+      if (res.ok) {
+        const data = await res.json()
+        chainlinkRound = data.roundId
+      }
+    } catch {}
+
     const payload: Record<string, string> = {
       wallet: address,
       birth_issue: fullBirthUrl,
       oracle_name: oracleName.trim(),
       action: "verify_identity",
       timestamp: new Date().toISOString(),
-      statement: "I am verifying my Oracle identity."
+      statement: "I am verifying my Oracle identity.",
+      ...(chainlinkRound && { chainlink_round: chainlinkRound }),
     }
     if (newBot.trim()) {
       payload.bot_wallet = newBot.trim()
@@ -300,7 +312,8 @@ export function Identity() {
   const handleSign = async () => {
     if (!address || !birthIssueUrl || !oracleName.trim()) return
     setVerifyError(null)
-    const message = getVerifyMessage()
+    const message = await getVerifyMessage()
+    if (!message) return
     try {
       const signature = await signMessageAsync({ message })
       setSignedData({ message, signature })

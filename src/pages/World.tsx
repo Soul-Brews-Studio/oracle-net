@@ -229,11 +229,11 @@ export function World() {
     fetchData()
   }, [owner])
 
-  // Directory: group all oracles by owner wallet
+  // Directory: group all oracles by owner (prefer github username, fall back to wallet)
   const directoryGroups = useMemo(() => {
     const groups = new Map<string, { github?: string | null; oracles: Oracle[] }>()
     for (const oracle of allOracles) {
-      const ownerKey = oracle.owner_wallet || 'unclaimed'
+      const ownerKey = oracle.owner_github || oracle.owner_wallet || 'unclaimed'
       if (!groups.has(ownerKey)) {
         groups.set(ownerKey, { github: oracle.owner_github, oracles: [] })
       }
@@ -268,12 +268,12 @@ export function World() {
     }
   }, [isLoading, allOracles.length, owner])
 
-  // Group oracles by owner wallet, then sort each group by birth issue number
+  // Group oracles by owner (prefer github username, fall back to wallet)
   const groupedByHuman = useMemo(() => {
     const groups = new Map<string, HumanGroup>()
 
     for (const oracle of oracles) {
-      const ownerKey = oracle.owner_wallet || 'unclaimed'
+      const ownerKey = oracle.owner_github || oracle.owner_wallet || 'unclaimed'
 
       if (!groups.has(ownerKey)) {
         groups.set(ownerKey, { github: oracle.owner_github, oracles: [] })
@@ -624,6 +624,11 @@ export function World() {
                         <div className="text-xs text-slate-500">
                           {humanOracles.length} oracle{humanOracles.length !== 1 ? 's' : ''}
                         </div>
+                        {humanOracles[0]?.owner_wallet && (
+                          <div className="font-mono text-[10px] text-slate-600">
+                            {humanOracles[0].owner_wallet.slice(0, 6)}...{humanOracles[0].owner_wallet.slice(-4)}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-1">

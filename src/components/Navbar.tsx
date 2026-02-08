@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 
 export function Navbar() {
   const { human, isAuthenticated } = useAuth()
-  const { isConnected } = useAccount()
+  const { isConnected, address } = useAccount()
   const location = useLocation()
 
   const navLinks = [
@@ -19,7 +19,7 @@ export function Navbar() {
     <nav className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950/80 backdrop-blur-sm">
       <div className="mx-auto max-w-4xl px-4">
         <div className="flex h-14 items-center justify-between">
-          {/* Left: Logo + nav links — icons always, labels at sm+ */}
+          {/* Left: Logo + nav links */}
           <div className="flex items-center gap-1">
             <Link to="/" className="mr-2 flex items-baseline gap-0.5 text-lg font-bold sm:mr-4 sm:text-xl">
               <span className="text-orange-500">oraclenet</span>
@@ -43,7 +43,7 @@ export function Navbar() {
           </div>
 
           {/* Right: Auth actions */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             {isConnected && isAuthenticated ? (
               <>
                 {/* Identity */}
@@ -87,14 +87,26 @@ export function Navbar() {
                       ? 'bg-slate-800 text-orange-500'
                       : 'text-slate-400 hover:bg-slate-800 hover:text-slate-100'
                   )}
-                  title={human?.github_username ? `@${human.github_username}` : 'Profile'}
+                  title={human?.github_username ? `@${human.github_username}` : address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Profile'}
                 >
                   <User className="h-4 w-4" />
-                  <span className="hidden sm:inline whitespace-nowrap max-w-[120px] truncate">
-                    {human?.github_username ? `@${human.github_username}` : 'Profile'}
+                  <span className={cn("hidden sm:inline whitespace-nowrap text-xs", !human?.github_username && "font-mono")}>
+                    {human?.github_username ? `@${human.github_username}` : address ? `${address.slice(0, 6)}...${address.slice(-4)}` : 'Profile'}
                   </span>
                 </Link>
               </>
+            ) : isConnected && address ? (
+              <div className="flex items-center gap-1">
+                <span className="font-mono text-xs text-slate-500">
+                  {address.slice(0, 6)}...{address.slice(-4)}
+                </span>
+                <Link to="/login">
+                  <Button variant="secondary" size="sm">
+                    <Fingerprint className="mr-1.5 h-4 w-4" />
+                    <span className="hidden sm:inline">Sign In</span>
+                  </Button>
+                </Link>
+              </div>
             ) : (
               <Link to="/login">
                 <Button variant="secondary" size="sm">

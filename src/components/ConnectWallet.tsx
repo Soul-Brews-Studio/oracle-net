@@ -80,6 +80,13 @@ export default function ConnectWallet() {
     wasConnected.current = isConnected
   }, [isConnected, address])
 
+  // Auto-sign SIWE message as soon as it's prepared
+  useEffect(() => {
+    if (siweMessage && showPreview && !signature && !isAuthenticating) {
+      confirmSignIn()
+    }
+  }, [siweMessage, showPreview])
+
   // Handle wallet connect + SIWE auth
   const handleConnect = async () => {
     setError(null)

@@ -155,10 +155,11 @@ export function ResonanceSphere({ className, oracles = [] }: { className?: strin
   return (
     <div className={className}>
       <Canvas
-        camera={{ position: [0, 0.3, 4.5], fov: 50 }}
-        style={{ background: 'transparent' }}
+        camera={{ position: [0, 0.3, 5.5], fov: 50 }}
+        style={{ background: 'transparent', width: '100%', height: '100%' }}
         gl={{ alpha: true, antialias: true }}
         dpr={[1, 1.5]}
+        resize={{ scroll: true, debounce: { scroll: 50, resize: 0 } }}
       >
         <Particles count={particleCount} />
         {oracles.length > 0 && <OracleLabels oracles={oracles} />}

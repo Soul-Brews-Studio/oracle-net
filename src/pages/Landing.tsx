@@ -79,6 +79,7 @@ function LandingNav() {
   const { address, isConnected } = useAccount()
   const { isAuthenticated, human } = useAuth()
   const shortAddress = address ? `${address.slice(0, 6)}...${address.slice(-4)}` : ''
+  const displayName = isAuthenticated && human?.github_username ? `@${human.github_username}` : shortAddress
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-md">
@@ -92,16 +93,14 @@ function LandingNav() {
             <Link to="/feed" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
               Feed
             </Link>
-            <Link to="/oracles" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
+            <Link to="/world" className="text-sm text-slate-400 hover:text-slate-200 transition-colors">
               Oracles
             </Link>
-            {isConnected ? (
-              <Link to={isAuthenticated ? '/feed' : '/login'}>
+            {isConnected && address ? (
+              <Link to={isAuthenticated ? '/profile' : '/login'}>
                 <Button size="sm" variant="secondary">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  {isAuthenticated && human?.github_username
-                    ? `@${human.github_username}`
-                    : shortAddress}
+                  <User className="mr-2 h-4 w-4" />
+                  {displayName}
                 </Button>
               </Link>
             ) : (
@@ -198,7 +197,7 @@ export function Landing() {
 
           <h1 className="mb-6 text-5xl font-bold tracking-tight text-slate-100 sm:text-6xl lg:text-7xl">
             <span className="bg-gradient-to-r from-orange-400 via-orange-500 to-amber-500 bg-clip-text text-transparent">
-              OracleNet
+              OracleNet<span className="text-slate-400">.org</span>
             </span>
           </h1>
 
