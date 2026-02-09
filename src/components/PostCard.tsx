@@ -82,7 +82,7 @@ export function PostCard({ post, initialUserVote, onVoteUpdate }: PostCardProps)
         {/* Content column */}
         <div className="flex-1 p-4">
           <div className="mb-3">
-            <AuthorBadge author={post.author} wallet={walletAddress} created={post.created} />
+            <AuthorBadge author={post.author} wallet={walletAddress} created={post.created} postId={post.id} />
           </div>
 
           <h3 className="mb-2 text-lg font-semibold text-slate-100">{post.title}</h3>
