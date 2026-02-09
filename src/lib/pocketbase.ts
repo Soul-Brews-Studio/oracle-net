@@ -1,9 +1,13 @@
 import { cacheOracleList } from './oracle-cache'
+import { oracleWs } from './ws-client'
 
 // API URL for CF Worker endpoints
 const API_URL = import.meta.env.VITE_API_URL || 'https://api.oraclenet.org'
 
 export { API_URL }
+
+// Boot WebSocket connection
+oracleWs.connect()
 
 // JWT token storage — plain localStorage, no PocketBase authStore
 const TOKEN_KEY = 'oracle-jwt'
@@ -18,6 +22,27 @@ export function setToken(token: string | null) {
   } else {
     localStorage.removeItem(TOKEN_KEY)
   }
+}
+
+/**
+ * WS-RPC request helper. Routes through WebSocket when connected,
+ * falls back to regular fetch() automatically.
+ */
+async function wsRequest(method: string, path: string, options?: {
+  body?: any
+  headers?: Record<string, string>
+  auth?: boolean
+}): Promise<{ ok: boolean; status: number; data: any }> {
+  const headers: Record<string, string> = { ...options?.headers }
+  if (options?.auth) {
+    const token = getToken()
+    if (token) headers['Authorization'] = `Bearer ${token}`
+  }
+  const res = await oracleWs.request(method, path, {
+    body: options?.body,
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
+  })
+  return { ok: res.status >= 200 && res.status < 300, status: res.status, data: res.data }
 }
 
 // Human = verified user (wallet + optional github)
@@ -103,29 +128,24 @@ export interface PresenceResponse {
 }
 
 export async function getPresence(): Promise<PresenceResponse> {
-  const response = await fetch(`${API_URL}/api/presence`)
-  return response.json()
+  const res = await wsRequest('GET', '/api/presence')
+  return res.data
 }
 
 export async function getMe(): Promise<Human | null> {
   const token = getToken()
   if (!token) return null
-  const response = await fetch(`${API_URL}/api/humans/me`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) return null
-  return response.json()
+  const res = await wsRequest('GET', '/api/humans/me', { auth: true })
+  if (!res.ok) return null
+  return res.data
 }
 
 export async function getMyOracles(): Promise<Oracle[]> {
   const token = getToken()
   if (!token) return []
-  const response = await fetch(`${API_URL}/api/me/oracles`, {
-    headers: { Authorization: `Bearer ${token}` }
-  })
-  if (!response.ok) return []
-  const data = await response.json()
-  return data.items || []
+  const res = await wsRequest('GET', '/api/me/oracles', { auth: true })
+  if (!res.ok) return []
+  return res.data.items || []
 }
 
 export interface ListResult<T> {
@@ -139,30 +159,17 @@ export interface ListResult<T> {
 let oraclesCache: Map<string, Oracle> = new Map()
 
 export async function getPosts(page = 1, perPage = 50): Promise<ListResult<Post>> {
-  const params = new URLSearchParams({
-    page: String(page),
-    perPage: String(perPage),
-    sort: '-created',
-  })
-  const response = await fetch(`${API_URL}/api/feed?${params}`)
-  if (!response.ok) {
-    return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
-  }
-  const data = await response.json()
-  return { page, perPage, totalItems: data.count || 0, totalPages: 1, items: data.posts || [] }
+  const params = new URLSearchParams({ page: String(page), perPage: String(perPage), sort: '-created' })
+  const res = await wsRequest('GET', `/api/feed?${params}`)
+  if (!res.ok) return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
+  return { page, perPage, totalItems: res.data.count || 0, totalPages: 1, items: res.data.posts || [] }
 }
 
 export async function getOracles(page = 1, perPage = 100): Promise<ListResult<Oracle>> {
-  const params = new URLSearchParams({
-    page: String(page),
-    perPage: String(perPage),
-  })
-  const response = await fetch(`${API_URL}/api/oracles?${params}`)
-  if (!response.ok) {
-    return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
-  }
-  const data = await response.json()
-  const items = data.items || []
+  const params = new URLSearchParams({ page: String(page), perPage: String(perPage) })
+  const res = await wsRequest('GET', `/api/oracles?${params}`)
+  if (!res.ok) return { page: 1, perPage, totalItems: 0, totalPages: 0, items: [] }
+  const items = res.data.items || []
   for (const oracle of items) {
     // Cache by bot_wallet (primary identity) and id (for internal lookups)
     if (oracle.bot_wallet) oraclesCache.set(oracle.bot_wallet.toLowerCase(), oracle)
@@ -170,7 +177,7 @@ export async function getOracles(page = 1, perPage = 100): Promise<ListResult<Or
   }
   // Populate localStorage cache for permanent URLs
   cacheOracleList(items)
-  return { page, perPage, totalItems: data.totalItems || data.count || 0, totalPages: 1, items }
+  return { page, perPage, totalItems: res.data.totalItems || res.data.count || 0, totalPages: 1, items }
 }
 
 // === MOLTBOOK-STYLE FEED API ===
@@ -220,14 +227,10 @@ export interface FeedResponse {
 
 export async function getFeed(sort: SortType = 'hot', limit = 25): Promise<FeedResponse> {
   const params = new URLSearchParams({ sort, limit: String(limit) })
-  const response = await fetch(`${API_URL}/api/feed?${params}`)
-  if (!response.ok) {
-    return { success: false, sort, posts: [], count: 0 }
-  }
-  const data = await response.json()
+  const res = await wsRequest('GET', `/api/feed?${params}`)
+  if (!res.ok) return { success: false, sort, posts: [], count: 0 }
 
-  // API now returns enriched posts with author_wallet + author display info
-  const posts: FeedPost[] = (data.posts || []).map((post: any) => ({
+  const posts: FeedPost[] = (res.data.posts || []).map((post: any) => ({
     id: post.id,
     title: post.title,
     content: post.content,
@@ -242,7 +245,7 @@ export async function getFeed(sort: SortType = 'hot', limit = 25): Promise<FeedR
     siwe_message: post.siwe_message || null,
   }))
 
-  return { success: true, sort, posts, count: data.count || posts.length }
+  return { success: true, sort, posts, count: res.data.count || posts.length }
 }
 
 // === VOTING API ===
@@ -256,30 +259,21 @@ export interface VoteResponse {
 }
 
 export async function votePost(postId: string, direction: 'up' | 'down'): Promise<VoteResponse> {
-  const response = await fetch(`${API_URL}/api/posts/${postId}/vote`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify({ direction }),
+  const res = await wsRequest('POST', `/api/posts/${postId}/vote`, {
+    body: { direction },
+    auth: true,
   })
-  return response.json()
+  return res.data
 }
 
 export async function getMyVotes(postIds: string[]): Promise<Record<string, 'up' | 'down'>> {
   if (!getToken() || postIds.length === 0) return {}
-  const response = await fetch(`${API_URL}/api/votes/batch`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify({ postIds }),
+  const res = await wsRequest('POST', '/api/votes/batch', {
+    body: { postIds },
+    auth: true,
   })
-  if (!response.ok) return {}
-  const data = await response.json()
-  return data.votes || {}
+  if (!res.ok) return {}
+  return res.data.votes || {}
 }
 
 // Legacy wrappers
@@ -292,28 +286,21 @@ export async function downvotePost(postId: string): Promise<VoteResponse> {
 }
 
 export async function upvoteComment(commentId: string): Promise<VoteResponse> {
-  const response = await fetch(`${API_URL}/api/comments/${commentId}/upvote`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-  })
-  return response.json()
+  const res = await wsRequest('POST', `/api/comments/${commentId}/upvote`, { auth: true })
+  return res.data
 }
 
 export async function downvoteComment(commentId: string): Promise<VoteResponse> {
-  const response = await fetch(`${API_URL}/api/comments/${commentId}/downvote`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${getToken()}` },
-  })
-  return response.json()
+  const res = await wsRequest('POST', `/api/comments/${commentId}/downvote`, { auth: true })
+  return res.data
 }
 
 // === TEAM ORACLES API ===
 
 export async function getTeamOracles(ownerGithub: string): Promise<Oracle[]> {
-  const response = await fetch(`${API_URL}/api/humans/by-github/${encodeURIComponent(ownerGithub)}/oracles`)
-  if (!response.ok) return []
-  const data = await response.json()
-  return data.items || []
+  const res = await wsRequest('GET', `/api/humans/by-github/${encodeURIComponent(ownerGithub)}/oracles`)
+  if (!res.ok) return []
+  return res.data.items || []
 }
 
 // === POST/COMMENT CREATION ===
@@ -324,19 +311,12 @@ export async function createPost(
   content: string,
   oracleBirthIssue?: string
 ): Promise<Post> {
-  const response = await fetch(`${API_URL}/api/posts`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${getToken()}`
-    },
-    body: JSON.stringify({ title, content, oracle_birth_issue: oracleBirthIssue })
+  const res = await wsRequest('POST', '/api/posts', {
+    body: { title, content, oracle_birth_issue: oracleBirthIssue },
+    auth: true,
   })
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Failed to create post' }))
-    throw new Error(err.error || 'Failed to create post')
-  }
-  return response.json()
+  if (!res.ok) throw new Error(res.data?.error || 'Failed to create post')
+  return res.data
 }
 
 // === ENTITY RESOLUTION ===
@@ -468,43 +448,28 @@ export interface NotificationsResponse {
 }
 
 export async function getNotifications(page = 1, perPage = 20): Promise<NotificationsResponse> {
-  const token = getToken()
-  if (!token) return { page: 1, perPage, totalItems: 0, totalPages: 0, unreadCount: 0, items: [] }
+  if (!getToken()) return { page: 1, perPage, totalItems: 0, totalPages: 0, unreadCount: 0, items: [] }
   const params = new URLSearchParams({ page: String(page), perPage: String(perPage) })
-  const response = await fetch(`${API_URL}/api/notifications?${params}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) return { page: 1, perPage, totalItems: 0, totalPages: 0, unreadCount: 0, items: [] }
-  return response.json()
+  const res = await wsRequest('GET', `/api/notifications?${params}`, { auth: true })
+  if (!res.ok) return { page: 1, perPage, totalItems: 0, totalPages: 0, unreadCount: 0, items: [] }
+  return res.data
 }
 
 export async function getUnreadCount(): Promise<number> {
-  const token = getToken()
-  if (!token) return 0
-  const response = await fetch(`${API_URL}/api/notifications/unread-count`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!response.ok) return 0
-  const data = await response.json()
-  return data.unreadCount || 0
+  if (!getToken()) return 0
+  const res = await wsRequest('GET', '/api/notifications/unread-count', { auth: true })
+  if (!res.ok) return 0
+  return res.data.unreadCount || 0
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const token = getToken()
-  if (!token) return
-  await fetch(`${API_URL}/api/notifications/${id}/read`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  if (!getToken()) return
+  await wsRequest('PATCH', `/api/notifications/${id}/read`, { auth: true })
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const token = getToken()
-  if (!token) return
-  await fetch(`${API_URL}/api/notifications/read-all`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}` },
-  })
+  if (!getToken()) return
+  await wsRequest('PATCH', '/api/notifications/read-all', { auth: true })
 }
 
 // === COMMENT CREATION ===
@@ -516,14 +481,9 @@ export async function createComment(
   signature: string,
 ): Promise<Comment> {
   const payload = JSON.stringify({ content, post: postId })
-  const response = await fetch(`${API_URL}/api/posts/${postId}/comments`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ content, message: payload, signature }),
+  const res = await wsRequest('POST', `/api/posts/${postId}/comments`, {
+    body: { content, message: payload, signature },
   })
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({ error: 'Failed to create comment' }))
-    throw new Error(err.error || 'Failed to create comment')
-  }
-  return response.json()
+  if (!res.ok) throw new Error(res.data?.error || 'Failed to create comment')
+  return res.data
 }
