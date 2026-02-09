@@ -214,6 +214,7 @@ export interface FeedPost {
   score: number
   created: string
   author: FeedAuthor | null      // Resolved display info from API
+  comment_count?: number          // Number of comments
   siwe_signature?: string | null // Web3 signature proof
   siwe_message?: string | null   // Signed SIWE message
 }
@@ -241,6 +242,7 @@ export async function getFeed(sort: SortType = 'hot', limit = 25): Promise<FeedR
     score: post.score || 0,
     created: post.created,
     author: post.author || null,
+    comment_count: post.comment_count || 0,
     siwe_signature: post.siwe_signature || null,
     siwe_message: post.siwe_message || null,
   }))

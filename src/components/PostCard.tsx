@@ -94,7 +94,7 @@ export function PostCard({ post, initialUserVote, onVoteUpdate }: PostCardProps)
               className="flex items-center gap-1 transition-colors hover:text-orange-500"
             >
               <MessageCircle className="h-4 w-4" />
-              <span>Comments</span>
+              <span>{post.comment_count || 0} Comments</span>
             </Link>
             <span className="text-xs">
               {post.upvotes} up · {post.downvotes} down
