@@ -178,40 +178,41 @@ export function Identity() {
   const birthUrlForPoll = normalizeBirthIssueUrl(birthIssueUrl)
 
   // Poll for verification completion (bot may verify from CLI)
-  // After user signs, poll oracle list every 3s to detect new oracle
-  // Uses public API (no auth needed) so it works even when CLI did the verification
+  // After user signs, poll oracle list every 3s to detect ownership change
+  // For NEW claims: detect oracle appearing in list
+  // For RE-CLAIMS: detect owner_wallet changing to connected wallet
   useEffect(() => {
     if (!signedData || verifySuccess) return
     const interval = setInterval(async () => {
       await refreshAuth()
-      // Also check public oracle list (works even without JWT)
       const result = await getOracles(1, 200)
       const matched = result.items.find(o => o.birth_issue === birthUrlForPoll)
-      if (matched) {
-        setVerifySuccess({
-          oracle_name: matched.oracle_name || matched.name || oracleName,
-          github_username: human?.github_username || ''
-        })
-        const dest = matched.bot_wallet ? `/o/${matched.bot_wallet.toLowerCase()}` : '/team'
-        setTimeout(() => navigate(dest), 2000)
-      }
-    }, 3000)
-    return () => clearInterval(interval)
-  }, [signedData, verifySuccess, refreshAuth, birthUrlForPoll, oracleName, human, navigate])
-
-  // Auto-redirect when oracle matching current birth issue appears (from auth context)
-  useEffect(() => {
-    if (!signedData || verifySuccess) return
-    const matched = oracles.find(o => o.birth_issue === birthUrlForPoll)
-    if (matched) {
+      if (!matched) return // Not yet created
+      // Only auto-redirect if this wallet now owns it (handles both new + re-claim)
+      if (matched.owner_wallet?.toLowerCase() !== address?.toLowerCase()) return
       setVerifySuccess({
         oracle_name: matched.oracle_name || matched.name || oracleName,
         github_username: human?.github_username || ''
       })
       const dest = matched.bot_wallet ? `/o/${matched.bot_wallet.toLowerCase()}` : '/team'
       setTimeout(() => navigate(dest), 2000)
-    }
-  }, [oracles, birthUrlForPoll, signedData, verifySuccess]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, 3000)
+    return () => clearInterval(interval)
+  }, [signedData, verifySuccess, refreshAuth, birthUrlForPoll, oracleName, human, navigate, address])
+
+  // Auto-redirect when oracle matching current birth issue appears in auth context (already owned)
+  useEffect(() => {
+    if (!signedData || verifySuccess) return
+    const matched = oracles.find(o => o.birth_issue === birthUrlForPoll)
+    // Only redirect if connected wallet owns it
+    if (!matched || matched.owner_wallet?.toLowerCase() !== address?.toLowerCase()) return
+    setVerifySuccess({
+      oracle_name: matched.oracle_name || matched.name || oracleName,
+      github_username: human?.github_username || ''
+    })
+    const dest = matched.bot_wallet ? `/o/${matched.bot_wallet.toLowerCase()}` : '/team'
+    setTimeout(() => navigate(dest), 2000)
+  }, [oracles, birthUrlForPoll, signedData, verifySuccess, address]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch verification issue when URL changes
   useEffect(() => {
