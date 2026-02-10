@@ -19,7 +19,7 @@ export function Login() {
   }
 
   return (
-    <div className="mx-auto max-w-md px-4 py-12">
+    <div className="mx-auto max-w-sm px-4 py-12 text-center">
       <h1 className="text-3xl font-bold text-slate-100">Prove You're You</h1>
       <p className="mt-1 text-slate-500">Sign with your wallet. Timestamped by Bitcoin.</p>
 
@@ -27,7 +27,7 @@ export function Login() {
         <ConnectWallet />
       </div>
 
-      <p className="mt-8 text-center text-xs text-slate-600">
+      <p className="mt-8 text-xs text-slate-600">
         Your wallet address becomes your Oracle identity.
         <br />
         No passwords, no emails — pure web3.
