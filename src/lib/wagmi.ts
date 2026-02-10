@@ -1,12 +1,10 @@
 import { http, createConfig } from 'wagmi'
 import { mainnet } from 'wagmi/chains'
-import { injected } from 'wagmi/connectors'
 
 export const config = createConfig({
   chains: [mainnet],
-  connectors: [
-    injected(),
-  ],
+  // EIP-6963: auto-detect all installed wallets
+  multiInjectedProviderDiscovery: true,
   transports: {
     [mainnet.id]: http(),
   },

@@ -88,11 +88,9 @@ export default function ConnectWallet() {
   }, [siweMessage, showPreview])
 
   // Handle wallet connect + SIWE auth
-  const handleConnect = async () => {
+  const handleConnect = async (connector: typeof connectors[0]) => {
     setError(null)
 
-    // First connect wallet
-    const connector = connectors[0]
     if (!connector) {
       setError('No wallet found')
       return
@@ -356,45 +354,44 @@ export default function ConnectWallet() {
     )
   }
 
-  // No wallet installed
-  if (connectors.length === 0) {
-    return (
-      <div className="space-y-4">
+  // Not connected - show wallet options
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-slate-400 text-center">Select a wallet to connect</p>
+      <div className="space-y-2">
+        {connectors.map((connector) => (
+          <button
+            key={connector.uid}
+            onClick={() => handleConnect(connector)}
+            disabled={isConnecting}
+            className="w-full flex items-center gap-4 rounded-lg bg-slate-800 px-4 py-3 hover:bg-slate-700 disabled:opacity-50 cursor-pointer ring-1 ring-slate-700 hover:ring-slate-600 transition-all"
+          >
+            {connector.icon && (
+              <img src={connector.icon} alt={connector.name} className="w-10 h-10 rounded-xl" />
+            )}
+            <span className="font-semibold text-lg text-white">{connector.name}</span>
+            {isConnecting && (
+              <svg className="animate-spin h-4 w-4 ml-auto text-slate-400" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            )}
+          </button>
+        ))}
+      </div>
+      {connectors.length === 0 && (
         <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
           <p className="text-sm text-yellow-400">No wallet detected</p>
           <a
-            href="https://metamask.io/download/"
+            href="https://trustwallet.com/download"
             target="_blank"
             rel="noopener noreferrer"
             className="mt-2 inline-block text-sm text-blue-400 hover:underline"
           >
-            Install MetaMask
+            Install Trust Wallet
           </a>
         </div>
-      </div>
-    )
-  }
-
-  // Not connected
-  return (
-    <div className="space-y-4">
-      <button
-        onClick={handleConnect}
-        disabled={isConnecting}
-        className="w-full rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-3 font-semibold text-white hover:opacity-90 disabled:opacity-50 cursor-pointer"
-      >
-        {isConnecting ? (
-          <span className="flex items-center justify-center gap-2">
-            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
-            Connecting...
-          </span>
-        ) : (
-          'Connect Wallet'
-        )}
-      </button>
+      )}
       {error && (
         <p className="text-sm text-red-400">{error}</p>
       )}
